@@ -1,0 +1,231 @@
+﻿@page "/evento/listaInvitados/{Id:int}"
+@attribute [Authorize]
+
+@inject HttpClient Http
+@inject NavigationManager uriHelper
+@inject IJSRuntime JsRuntime
+
+
+@using System.Threading;
+@using System.Text.RegularExpressions;
+@using Microsoft.AspNetCore.Http;
+@using System.Text;
+@using System.Diagnostics;
+@using Microsoft.AspNetCore.Components;
+@using Microsoft.AspNetCore.Components.Web;
+
+@using System.Net.Mime;
+
+<AuthorizeView Roles="Administrador, Soporte">
+
+
+    <h4 style="text-align: center;">Listado de invitados: @NombreEvento</h4>
+
+    <table class="table tabla-condensed table-striped dataTable no-footer  tablasLargas" id="ponchoTable" aria-describedby="ponchoTable_info" role="grid">
+        <thead>
+
+            <tr role="row">
+                <td colspan="1" style="text-align: center;">Cantidad de invitados:</td>
+                <td colspan="1" style="text-align: center;">@CantInvitados</td>
+                <td colspan="1" style="text-align: center;">Cupo disponible:</td>
+                <td colspan="1" style="text-align: center;">@CupoDisponible</td>
+                <td colspan="1" style="text-align: center;">Invitados confirmados:</td>
+                <td colspan="1" style="text-align: center;">@InvitadosConfirmados</td>
+            </tr>
+
+        </thead>
+        <thead hidden="@IsShowTabla">
+            <tr role="row">
+                <th>Nombre</th>
+                <th>Apellido</th>
+                <th>eMail</th>
+                <th>Organismo</th>
+                <th>Estado</th>
+            </tr>
+        </thead>
+        <tbody hidden="@IsShowTabla">
+
+            @foreach (var oPersona in personasYaInvitadas)
+            {
+                <tr role="row" class="odd">
+                    <td class="sorting_1" data-title="Nombre">
+                        <p>@oPersona.Nombre</p>
+                    </td>
+                    <td class="sorting_1" data-title="Apellido">
+                        <p>@oPersona.Apellido</p>
+                    </td>
+                    <td class="sorting_1" data-title="MailContacto">
+                        <p>@oPersona.MailContacto</p>
+                    </td>
+
+                    <td class="sorting_1" data-title="IdOrganismo">
+                        <p>@oPersona.IdOrganismo</p>
+                    </td>
+                    <td class="sorting_1" data-title="Estado">
+                        <p>@ObtenerEstado(oPersona.Id)</p>
+                    </td>
+
+                </tr>
+            }
+        </tbody>
+    </table>
+    <br />
+    <br />
+    <br />
+    <br />
+    <br />
+    <br />
+    <br />
+    <br />
+    <br />
+    <br />
+    <br />
+</AuthorizeView>
+@code {
+    [Parameter]
+    public int Id { get; set; }
+    public string UrlPersona = "/api/persona";
+    public string urlOrganismo = "/api/organismo";
+    public string UrlInvitacion = "/api/invitacion";
+    public string UrlCorreo = "/api/correo";
+    public string UrlEvento = "/api/evento";
+    public string UrlEventoParticipante = "/api/eventoparticipante";
+    public bool confirmo = false;
+    public bool encontroPreinscripto = true;
+    List<Persona> personas = new List<Persona>();
+    List<Persona> cargaErronea = new List<Persona>();
+    List<Persona> accesoDenegado = new List<Persona>();
+    List<Organismo> organismos = new List<Organismo>();
+    List<Invitacion> invitaciones = new List<Invitacion>();
+    List<EventoParticipante> eventoParticipantes = new List<EventoParticipante>();
+    List<Persona> personasYaInvitadas = new List<Persona>();
+    Respuesta<Object> oRespuesta = new Respuesta<Object>();
+    Respuesta<Organismo> oRespuestaOrganismos = new Respuesta<Organismo>();
+    Respuesta<Evento> oRespuestaEvento = new Respuesta<Evento>();
+    Respuesta<List<Invitacion>> oRespuestaInvitaciones = new Respuesta<List<Invitacion>>(); private string Message { get; set; } = "";
+    Respuesta<EventoParticipante> oRespuestaEventoParticipante = new Respuesta<EventoParticipante>();
+    private string MensajeTablaImport { get; set; } = "Sin datos aún";
+    LoggerManger logger = new LoggerManger();
+
+    string NombreEvento;
+    int? CantInvitados { get; set; } = 0;
+    int? CupoDisponible { get; set; } = 0;
+    int? InvitadosConfirmados { get; set; } = 0;
+    string estadoInscripcion { get; set; } = "";
+
+    private bool IsShowTabla { get; set; } = true;
+    private void ShowTabla(bool mostrar)
+    {
+        if (mostrar)
+            IsShowTabla = false;
+        else
+            IsShowTabla = true;
+    }
+
+    //RECORRER LAS LISTAS DE PERSONAS PARA OBTENER EL ESTADO DEL INVITADO, LAS LISTAS LAS TRAE CUANDOS E INICIA LA PAGINA
+    private string ObtenerEstado(int idPersona)
+    {
+        string retorno = "";
+
+        if (invitaciones != null)
+        {
+            var invitacionPersona = invitaciones.Where(p => p.IdPersona == idPersona).ToList();
+            var eventoPersona = eventoParticipantes.Where(p => p.IdInvitacion == invitacionPersona.ElementAt(0).Id).ToList();
+            retorno = eventoPersona.ElementAt(0).EstadodeInscripcion;
+        }
+
+        return retorno;
+
+    }
+
+    private async Task MostrarInvitadosNuevos(List<Persona> excel)
+    {
+        ShowTabla(false);
+        MensajeTablaImport = "No se encontraron datos correctos";
+
+        if (personasYaInvitadas.Count() > 1)
+        {
+            ShowTabla(true);
+            MensajeTablaImport = "";
+
+        }
+    }
+    protected override async Task OnInitializedAsync()
+    {
+        if (Id != 0)
+        {
+            try
+            {
+
+
+                MensajeTablaImport = "Buscando Invitados...";
+                var oRespuestaEvento = await Http.GetFromJsonAsync<Respuesta<Evento>>(UrlPersona + "/TraerEvento/" + Id);
+                NombreEvento = oRespuestaEvento.Data.Nombre;
+                oRespuestaInvitaciones = await Http.GetFromJsonAsync<Respuesta<List<Invitacion>>>(UrlInvitacion + "/" + Id);
+                if (oRespuestaInvitaciones.Exito == 0)
+                {
+                    MensajeTablaImport = "No se encontraron invitaciones";
+
+                }
+                else
+                {
+                    invitaciones = oRespuestaInvitaciones.Data;
+                    foreach (Invitacion item in invitaciones)
+                    {
+                        if (item.IdPersona != null)
+                        {
+                            oRespuestaEventoParticipante = await Http.GetFromJsonAsync<Respuesta<EventoParticipante>>(UrlEventoParticipante + "/" + item.Id);
+                            var personaAux = await Http.GetFromJsonAsync<Respuesta<Persona>>(UrlPersona + "/" + item.IdPersona);
+
+                            if (personaAux.Exito == 1)
+                            {
+                                Persona aux = personaAux.Data;
+                                personasYaInvitadas.Add(aux);
+                                eventoParticipantes.Add(oRespuestaEventoParticipante.Data);
+
+                                if (oRespuestaEventoParticipante.Data.EstadodeInscripcion == "No aceptado")
+                                {
+                                    accesoDenegado.Add(aux);
+                                }
+                                if (oRespuestaEventoParticipante.Data.EstadodeInscripcion == "Preinscripto"
+                                && encontroPreinscripto == true)
+                                {
+                                    encontroPreinscripto = false;
+                                }
+
+                            }
+                        }
+                    }
+                    if (personasYaInvitadas.Count() > 0)
+                    {
+                        CompletarCamposConteo(oRespuestaEvento.Data);
+                        MensajeTablaImport = "Se encontraron invitaciones";
+                        ShowTabla(true);
+                    }
+                    else
+                    {
+                        MensajeTablaImport = "No se encontraron invitaciones";
+                    }
+                }
+
+            }
+            catch (Exception e)
+            {
+
+                logger.LogError("Error OnInitializedAsync listaInvitados", e);
+
+            }
+
+        }
+    }
+
+    //completa la cantidad de invitados y el cupo del evento
+    private void CompletarCamposConteo(Evento oEvento)
+    {
+        CantInvitados = personasYaInvitadas.Count();
+        InvitadosConfirmados = eventoParticipantes.Where(p => p.EstadodeInscripcion == "Preinscripto" ||
+        p.EstadodeInscripcion == "Aceptado").ToList().Count();
+        CupoDisponible = oEvento.Cupo - InvitadosConfirmados;
+    }
+
+}

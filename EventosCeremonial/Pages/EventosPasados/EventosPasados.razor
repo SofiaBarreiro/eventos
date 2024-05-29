@@ -1,0 +1,85 @@
+﻿@page "/EventosPasados"
+@attribute [Authorize]
+
+@inject HttpClient Http
+@using System.IO;
+@using System.Reflection;
+@using EventosCeremonial.Helpers;
+
+
+
+<br />
+<br />
+<div class="panel-pane pane-titulo"><div class="pane-content"><h2 class="activities-sidbar">Eventos finalizados</h2></div></div>
+<br />
+<br />
+@*<table class="table tabla-condensed table-striped dataTable no-footer" id="ponchoTable" aria-describedby="ponchoTable_info" role="grid">
+    <thead>
+        <tr role="row">
+            <th class="sorting" tabindex="0" aria-controls="ponchoTable" rowspan="1" colspan="1" aria-label="">
+                Nombre
+            </th>
+            <th class="sorting" tabindex="0" aria-controls="ponchoTable" rowspan="1" colspan="1" aria-label="">
+                Formato
+            </th>
+            <th class="sorting" tabindex="0" aria-controls="ponchoTable" rowspan="1" colspan="1" aria-label="">
+                Inicio
+            </th>
+            
+            <th class="sorting" tabindex="0" aria-controls="ponchoTable" rowspan="1" colspan="1" aria-label="">
+                Cupo
+            </th>
+            <th></th>
+            <th></th>
+            <th></th>
+        </tr>
+    </thead>
+    <tbody>
+        @if (oRespuesta.Data == null && oRespuesta.Exito == 0)
+        {
+            <tr role="row" class="odd">
+                <td class="sorting_1" colspan="8">
+                    <p>Cargando...</p>
+                </td>
+            </tr>
+        }
+        @if (oRespuesta != null && oRespuesta.Data != null)
+        {
+            @foreach (var oElement in oRespuesta.Data)
+            {
+                <tr role="row" class="odd">
+                    <td class="" data-title="Nombre">
+                        <a href="/evento/disp/@oElement.Id">@oElement.Nombre</a>
+                    </td>
+                    <td class="" data-title="Formato">
+                        <p>@oElement.Formato</p>
+                    </td>
+                    <td class="" data-title="Inicio">
+                        <p>@oElement.FechaHoraInicio</p>
+                    </td>
+                   
+                    <td class="" data-title="Cupo">
+                        <p>@oElement.Cupo</p>
+                    </td>
+                    <td>
+                        <a href="/listadoparticipantes/@oElement.Id"><i class="fa fa-user-friends"></i></a>
+
+                    </td>
+                    <td>
+                        <a href="/evento/delete/@oElement.Id"><i class="fa fa-trash"></i></a>
+                    </td>
+                </tr>
+            }
+        }
+    </tbody>
+</table>*@
+
+@code {
+    public string Url = "/api/evento/eventosPasados";
+    @*public Respuesta<List<Evento>> oRespuesta = new Respuesta<List<Evento>>();
+
+    protected override async Task OnInitializedAsync() =>
+    oRespuesta = await Http.GetFromJsonAsync<Respuesta<List<Evento>>>(Url);*@
+
+
+}

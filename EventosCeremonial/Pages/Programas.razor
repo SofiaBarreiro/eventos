@@ -1,0 +1,92 @@
+﻿@page "/programas"
+@attribute [Authorize]
+    @inject HttpClient Http
+@inject NavigationManager NavigationManager
+
+@using Microsoft.Extensions.Logging;
+@using BlazorInputFile;
+@using System.Text;
+@using System.IO;
+<br />
+<br />
+
+<div class="panel-pane pane-titulo"><div class="pane-content"><h2 class="activities-sidbar">Programas</h2></div></div>
+<br />
+<br />
+
+<table class="table tabla-condensed table-striped dataTable no-footer" id="ponchoTable" aria-describedby="ponchoTable_info" role="grid">
+    <thead>
+        <tr role="row">
+            <th class="sorting" tabindex="0" aria-controls="ponchoTable" rowspan="1" colspan="1" aria-label="Nombre: Activar para ordenar la columna de manera ascendente">
+                Nombre
+            </th>
+            <th class="sorting" tabindex="0" aria-controls="ponchoTable" rowspan="1" colspan="1" aria-label="RutaPrograma: Activar para ordenar la columna de manera ascendente">
+                Ruta al programa
+            </th>
+           
+        </tr>
+    </thead>
+    <tbody>
+      @*  @if (oRespuesta.Data == null && oRespuesta.Exito == 0)
+        {
+            <tr role="row" class="odd">
+                <td class="sorting_1" colspan="8">
+                    <p>Cargando...</p>
+                </td>
+            </tr>
+        }
+        @if (oRespuesta != null && oRespuesta.Data != null)
+        {
+            @foreach (var oElement in oRespuesta.Data)
+            {
+               
+                if(oElement.RutaPrograma != null && oElement.RutaPrograma != "")
+                {
+                    
+                       string rutaAux = @"wwwroot\Programas\" + oElement.RutaPrograma;
+                      string url=  Http.BaseAddress.AbsoluteUri +"/Programas/" +oElement.RutaPrograma.Trim();
+
+                        if (File.Exists(rutaAux))
+                        {
+
+                             <tr role="row" class="odd">
+                                <td class="" data-title="Nombre" >
+                                <p>@oElement.Nombre</p>
+
+                            </td>
+                        
+                        
+                        <td class="" data-title="RutaPrograma" >
+                              <a href="@url"  target="_blank">@url</a>
+                      
+                         </td>  
+                        </tr>
+                        }
+                     
+                    
+                    }
+                }
+
+               
+            
+        }*@
+        
+    </tbody>
+</table>
+
+
+@code {
+
+@*     public int Id { get; set; }
+    public string accion { get; set; }
+    Evento oEvento = new Evento();
+    Respuesta<Evento> oRespuestaEvento = new Respuesta<Evento>();*@
+
+     public string Url = "/api/evento";
+    public Respuesta<List<Evento>> oRespuesta = new Respuesta<List<Evento>>();
+
+    //protected override async Task OnInitializedAsync() =>oRespuesta = await Http.GetFromJsonAsync<Respuesta<List<Evento>>>(Url);
+
+}
+
+

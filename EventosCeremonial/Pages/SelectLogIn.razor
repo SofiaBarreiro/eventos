@@ -1,0 +1,124 @@
+﻿@page "/selectlogin"
+@inject NavigationManager NavigationManager
+@inject AuthenticationStateProvider AuthenticationStateProvider
+@inject IJSRuntime js
+@using System.Security.Claims;
+@using Microsoft.AspNetCore.Authentication
+@using Microsoft.AspNetCore.Http
+@using Microsoft.AspNetCore.Identity
+@using Microsoft.AspNetCore.Authentication.WsFederation;
+@using Microsoft.AspNetCore.Authentication.Cookies;
+@using System.Threading;
+
+
+@inject IHttpContextAccessor httpContextAccessor
+
+
+<br />
+<br />
+<br />
+
+<div class="container">
+    <center>
+        <div class="alert alert-secondary col-md-6" style="opacity: 0.8;">
+            <main role="main">
+                <center>
+                    <h1>Ingresar</h1>
+                    <partial name="_StatusMessage" for="StatusMessage" />
+
+                    <div class="row">
+                        <div class="col-md-12">
+
+                            @*  <div class="form-group" hidden=@DivUsuario >*@
+                            @*  <div class="form-group" >
+                                Indique si es nacional o extranjero
+                                </div>
+                                <button type="button" id="botonNacional" @onclick="IrAIdentidades" class="btn btn-primary">Nacional</button>*@
+                            @*                                <button type="button" @onclick="IrAIdentity" id="botonExtranjero" class="btn btn-primary">Extranjero</button>
+                                </div>
+                            *@
+                            <div class="form-group">
+                                <div>
+                                    Indique si es empleado del MTEySS
+                                </div>
+                                
+                            <div >
+                              
+                                <button type="button" @onclick="IrAloginAD" class="btn btn-primary btn-block" style="width: 30%;margin-top: 8px;">Sí</button>
+                                <button type="button" @onclick="AccesoDenegado" class="btn btn-primary btn-block" style="width: 30%;margin-left: 20px;">No</button>
+
+                            </div>
+                               
+                            </div>
+
+                        </div>
+                    </div>
+
+                </center>
+
+            </main>
+        </div>
+    </center>
+
+    <br />
+    <br />
+
+</div>
+
+@code {
+
+
+    public bool DivNacionales { get; set; } = true;
+    //public bool DivUsuario { get; set; } = false;
+
+    protected override async Task OnInitializedAsync()
+    {
+        LoggerManger logger = new LoggerManger();
+
+        try
+        {
+
+            var authState = await AuthenticationStateProvider.GetAuthenticationStateAsync();
+            ClaimsPrincipal user = authState.User;
+            if (user.Identities.Any(x => x.IsAuthenticated))
+            {
+                httpContextAccessor.HttpContext.Session.Clear();
+            }
+        }
+        catch (Exception e)
+        {
+            logger.LogError("error en select login", e);
+        }
+
+    }
+    private async Task AccesoDenegado()
+    {
+        //NavigationManager.NavigateTo("https://login-int-qa.trabajo.gob.ar/adfs/ls?wtrealm=https://eventosdesa.trabajo.gob.ar&wreply=https%3A%2F%2Feventosdesa.trabajo.gob.ar%2Fsignin-wsfed&whr=https://login-int-qa.trabajo.gob.ar/adfs/services/trust&accion=login&wa=wsignin1.0", true);
+        await js.InvokeVoidAsync("alert", "Este acceso sólo se encuentra habilitado para empleados del MTEySS. Si usted fue invitado a un evento ingrese a la inscripción a través del acceso que le enviamos por correo.");
+
+        var timer = new Timer(new TimerCallback(_ =>
+              {
+                  NavigationManager.NavigateTo("/", true);
+
+              }), null, 1000, 1000);
+    }
+
+
+    private async Task IrAIdentidades()
+    {
+
+        DivNacionales = false;
+
+    }
+
+    private async Task IrAloginAD()
+    {
+        NavigationManager.NavigateTo("/loginAD", true);
+    }
+    private async Task IrAIdentity()
+    {
+        NavigationManager.NavigateTo("/Identity/Account/Login", true);
+
+    }
+
+}

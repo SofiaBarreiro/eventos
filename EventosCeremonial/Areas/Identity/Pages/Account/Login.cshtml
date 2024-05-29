@@ -1,0 +1,153 @@
+﻿@page
+@model LoginModel
+
+@{
+    <center>
+
+        <h1>Ingresar</h1>
+        <partial name="_StatusMessage" for="StatusMessage" />
+
+
+        <div class="row" >
+            <div class="col-md-12">
+                <section>
+                    <div class="col-xl-12" style="margin-top:40px;">
+        @foreach (var modeleState in Model.ModelState.Values)
+         {
+            foreach (var error in modeleState.Errors)
+             {
+               <p class="text-danger"> @error.ErrorMessage</p>
+
+             }
+          }
+     </div>
+                    <form id="account" method="post">
+                        <h4 >Usuarios externos</h4>
+                        <hr />
+                        <div class="form-group col-md-6">
+                            <label asp-for="Input.Email">Correo electrónico</label>
+                            <input asp-for="Input.Email" class="form-control" />
+                            <span asp-validation-for="Input.Email" class="text-danger"></span>
+                        </div>
+                        <div class="form-group col-md-6">
+                            <label asp-for="Input.Password">Contraseña</label>
+                            <input asp-for="Input.Password" class="form-control" />
+                            <span asp-validation-for="Input.Password" class="text-danger"></span>
+                        </div>
+                        <div class="form-group">
+                            <div class="checkbox">
+                                <label asp-for="Input.RememberMe">
+                                    <input asp-for="Input.RememberMe" />
+                                    @Html.DisplayNameFor(m => m.Input.RememberMe)
+                                </label>
+                            </div>
+                        </div>
+                        <div class="form-group">
+                            <button type="submit" class="btn btn-primary">Enviar</button>
+                            <a type="button" href="/selectlogin" class="btn btn-danger">Volver</a>
+
+                        </div>
+                        <div class="form-group">
+                            <p>
+                                <a id="forgot-password" asp-page="./ForgotPassword">¿Olvidó su contraseña?</a>
+                            </p>
+                            <p>
+                                <a asp-page="./Register" asp-route-returnUrl="@Model.ReturnUrl">Regístrese como nuevo usuario.</a>
+                            </p>
+                            <p>
+                                <a id="resend-confirmation" asp-page="./ResendEmailConfirmation">Reenviar mail de confirmación.</a>
+                            </p>
+                        </div>
+                    </form>
+                </section>
+            </div>
+            <div class="col-md-12 col-md-offset-2" id="DivIngresoNacional" hidden="hidden">
+                <section>
+                    <h4> Indique si es usuario del M.T.E y S.S. o usuario Externo.</h4>
+                     <hr />
+                    @{
+
+                        //<form id="external-account" asp-page="./ExternalLogin" asp-route-returnUrl="@Model.ReturnUrl" method="post" class="form-horizontal">
+                        //    <div>
+                        //        <p>
+
+                        //            <button type="submit" class="btn btn-primary" name="provider" value="@Model.ExternalLogins.ElementAt(0).Name" title="Log in using your @Model.ExternalLogins.ElementAt(0).DisplayName account" >@Model.ExternalLogins.ElementAt(0).Name</button>
+
+                        //        </p>
+                        //    </div>
+                        //</form>
+                        //ESTA LINEA HAY QUE DEJARLAS COMENTADAS PARA QUE NO ROMPA.CUANDO SE ACTUALICE ADFS SE PUEDE VOLVER A DESCOMENTAR
+
+                    }
+                </section>
+            </div>
+        </div>
+
+    </center>
+
+
+    // async Task MostrarIdentidades()
+    //{
+
+    //    Model.IdentidadesDiv = false; //muestro identidades
+    //    Model.Login = true; //oculto indentity
+    //    Model.DivIngreso = true;
+
+
+
+    //}
+    // async Task MostrarLogIn()
+    //{
+
+
+
+    //    Model.IdentidadesDiv = true; //muestro identidades
+    //    Model.Login = false; //oculto indentity
+    //    Model.DivIngreso = true;
+
+
+
+    //}
+}
+
+
+
+
+
+@section Scripts {
+<partial name="_ValidationScriptsPartial" />
+<script type="text/javascript">
+    // document.addEventListener("DOMContentLoaded", function () {
+
+
+    //    var buttonN = document.getElementById('botonNacional');
+    //    buttonN.addEventListener('click', function () {
+
+    //                    var buttonDiv = document.getElementById('DivIngreso');
+    //                    buttonDiv.hidden= false;
+
+
+    //                    var buttonDiv1 = document.getElementById('DivIngreso
+    // 
+    // ');
+    //                    buttonDiv1.hidden= true;
+
+    //                     var buttonDiv2 = document.getElementById('DivIngresoNacional');
+    //                    buttonDiv2.hidden= false;
+    //     });
+    //       var buttonE = document.getElementById('botonExtranjero');
+    //    buttonE.addEventListener('click', function () {
+    //          var buttonDiv = document.getElementById('DivIngreso');
+    //                    buttonDiv.hidden= false;
+
+
+    //                    var buttonDiv1 = document.getElementById('DivIngresoExtranjero');
+    //                    buttonDiv1.hidden= false;
+
+    //                     var buttonDiv2 = document.getElementById('DivIngresoNacional');
+    //                    buttonDiv2.hidden= true;
+    //     });
+    //});
+</script>
+}
+

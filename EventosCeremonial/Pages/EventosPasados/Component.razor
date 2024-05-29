@@ -1,0 +1,365 @@
+﻿@page "/eventospasados"
+@attribute [Authorize]
+
+@inject HttpClient Http
+@using System.IO;
+@using System.Reflection;
+@using EventosCeremonial.Helpers;
+
+@inject IJSRuntime js
+
+<AuthorizeView Roles="Administrador">
+
+    <br />
+    <br />
+    <center class="panel-pane pane-titulo"><div class="pane-content"><h2 class="activities-sidbar">Eventos finalizados</h2></div></center>
+    <br />
+    <br />
+
+
+    @if (oRespuestaTemporal.Data != null)
+    {
+        if (oRespuestaTemporal.Data.Count() > 10)
+        {
+            <div class="row col-md-6 float-end">
+                <div class="input-group col col-md-6">
+                    <input class="form-control border-end-0 border rounded-pill" id="inputBusqueda" type="text" @bind-value="textoBusqueda">
+                    <span class="input-group-append">
+                        <button class="btn btn-outline-secondary bg-white border-start-0 border rounded-pill ms-n3" id="botonBusqueda" type="button" @onclick="() =>MostrarResultado(oRespuestaTemporal.Data)">
+                            <i class="fa fa-search"></i>
+                        </button>
+                    </span>
+                </div>
+            </div>
+
+        }
+
+    }
+    <table class="table tabla-condensed table-striped dataTable no-footer tablasLargas " id="ponchoTable" aria-describedby="ponchoTable_info" role="grid">
+
+
+
+        <thead hidden="@EsconderBusquedas">
+            <tr role="row">
+                <th colspan="6" style="text-align: center;">Resultados encontrados</th>
+            </tr>
+
+            <tr role="row">
+                <th class="sorting" tabindex="0" aria-controls="ponchoTable" rowspan="1" colspan="1" aria-label="">
+                    Nombre
+                </th>
+                <th class="sorting" tabindex="0" aria-controls="ponchoTable" rowspan="1" colspan="1" aria-label="">
+                    Formato
+                </th>
+                <th class="sorting" tabindex="0" aria-controls="ponchoTable" rowspan="1" colspan="1" aria-label="">
+                    Inicio
+                </th>
+
+                <th class="sorting" tabindex="0" aria-controls="ponchoTable" rowspan="1" colspan="1" aria-label="">
+                    Cupo
+                </th>
+                <th class="sorting" tabindex="0" aria-controls="ponchoTable" rowspan="1" colspan="1" aria-label="">
+                    Estado
+                </th>
+                <th></th>
+                <th></th>
+                <th></th>
+                <th></th>
+            </tr>
+        </thead>
+
+
+        <tbody hidden="@EsconderBusquedas">
+            @foreach (var oElement in listaBusqueda)
+            {
+                <tr role="row" class="table-danger">
+                    <td class="" data-title="Nombre">
+                        <a href="/evento/disp/@oElement.Id">@oElement.Nombre</a>
+                    </td>
+                    <td class="" data-title="Formato">
+                        <p>@oElement.Formato</p>
+                    </td>
+                    <td class="" data-title="Inicio">
+                        <p>@oElement.FechaHoraInicio.Value.ToString("dd/MM/yy HH:MM ") hs</p>
+                    </td>
+
+                    <td class="" data-title="Cupo">
+                        <p>@oElement.Cupo</p>
+                    </td>
+                    <td>
+                        <a href="/listadoparticipantes/@oElement.Id"><i class="fa fa-user-friends"></i></a>
+
+                    </td>
+                    <td class="" data-title="Estado">
+
+                        @if (oElement.IdEstado == 2)
+                        {
+
+                            <p>Cerrado</p>
+                        }
+                        else
+                        {
+                            if (oElement.IdEstado == 3)
+                            {
+                                <p>Cancelado</p>
+                            }
+                            else
+                            {
+
+                                <p>-</p>
+                            }
+                        }
+
+                    </td>
+                    <td>
+
+
+                        @if (oElement.IdEstado == 1)
+                        {
+
+
+                            <a href="/evento/form/@oElement.Id"><i class="fa fa-edit"></i></a>
+                        }
+
+                    </td>
+                    <td>
+                        <a href="/evento/delete/@oElement.Id"><i class="fa fa-trash"></i></a>
+                    </td>
+                </tr>
+            }
+        </tbody>
+
+        <thead>
+            <tr role="row">
+                <th class="sorting" tabindex="0" aria-controls="ponchoTable" rowspan="1" colspan="1" aria-label="">
+                    Nombre
+                </th>
+                <th class="sorting" tabindex="0" aria-controls="ponchoTable" rowspan="1" colspan="1" aria-label="">
+                    Formato
+                </th>
+                <th class="sorting" tabindex="0" aria-controls="ponchoTable" rowspan="1" colspan="1" aria-label="">
+                    Inicio
+                </th>
+
+                <th class="sorting" tabindex="0" aria-controls="ponchoTable" rowspan="1" colspan="1" aria-label="">
+                    Cupo
+                </th>
+                <th class="sorting" tabindex="0" aria-controls="ponchoTable" rowspan="1" colspan="1" aria-label="">
+                    Estado
+                </th>
+                <th></th>
+                <th></th>
+                <th></th>
+                <th></th>
+            </tr>
+        </thead>
+        <tbody>
+            @if (listaRespuestas == null)
+            {
+                <tr role="row" class="odd">
+                    <td class="sorting_1" colspan="8">
+                        <p>Cargando...</p>
+                    </td>
+                </tr>
+            }
+            @if (listaRespuestas != null)
+            {
+                @foreach (var oElement in listaRespuestas)
+                {
+                    LoggerManger logger = new LoggerManger();
+
+                    <tr role="row" class="odd">
+                        <td class="" data-title="Nombre">
+                            <a href="/evento/disp/@oElement.Id">@oElement.Nombre</a>
+                        </td>
+                        <td class="" data-title="Formato">
+                            <p>@oElement.Formato</p>
+                        </td>
+                        <td class="" data-title="Inicio">
+                            <p>@oElement.FechaHoraInicio.Value.ToString("dd/MM/yy HH:MM ") hs</p>
+                        </td>
+
+                        <td class="" data-title="Cupo">
+                            <p>@oElement.Cupo</p>
+                        </td>
+                        <td class="" data-title="Cupo">
+                            <p>@oElement.IdEstado</p>
+                        </td>
+                        <td>
+                            <a href="/listadoparticipantes/@oElement.Id"><i class="fa fa-user-friends"></i></a>
+
+                        </td>
+                        <td>
+
+
+                            @if (oElement.IdEstado == 1)
+                            {
+
+
+                                <a href="/evento/form/@oElement.Id"><i class="fa fa-edit"></i></a>
+                            }
+
+                        </td>
+                        <td>
+                            <a href="/evento/delete/@oElement.Id"><i class="fa fa-trash"></i></a>
+                        </td>
+                    </tr>
+                }
+            }
+        </tbody>
+    </table>
+    <nav aria-label="Page navigation example">
+        <ul class="pagination">
+            @for (int i = 1; i <= cantPaginas; i++)
+            {
+                var fila = i;
+                <li class="page-item"><button class="page-link" @onclick="() =>TraerPagina(fila)">@i</button></li>
+            }
+        </ul>
+    </nav>
+
+</AuthorizeView>
+
+@code {
+
+    public string Url = "/api/evento/EventosFinalizados";
+    public Respuesta<List<Evento>> oRespuesta = new Respuesta<List<Evento>>();
+    public Respuesta<List<Evento>> oRespuestaTemporal = new Respuesta<List<Evento>>();
+
+    public List<Evento> listaRespuestas = new List<Evento>();
+
+    public int cantPaginas { get; set; }
+
+    public int porcion { get; set; } = 10;
+    public string textoBusqueda { get; set; } = "";
+
+    private bool EsconderBusquedas { get; set; } = true;
+    List<Evento> listaBusqueda = new List<Evento>();
+    LoggerManger logger = new LoggerManger();
+    protected async override void OnAfterRender(bool firstRender)
+    {
+        if (oRespuestaTemporal.Data != null)
+        {
+            if (oRespuestaTemporal.Data.Count() > 10)
+            {
+                if (firstRender == false)
+                {
+
+                    await js.InvokeVoidAsync("agregarEnter");
+
+                }
+            }
+        }
+        firstRender = true;
+    }
+    public async Task MostrarResultado(List<Evento> listaEventos)
+    {
+        try
+        {
+            if (textoBusqueda != null)
+            {
+
+                if (textoBusqueda != "" && textoBusqueda.Length > 3)
+                {
+
+                    List<Evento> rta1 = listaEventos.Where(x => x.Nombre.ToLower().Contains(textoBusqueda.ToLower())).ToList();
+
+                    listaBusqueda = rta1;
+
+                }
+            }
+
+
+
+        }
+        catch (Exception e)
+        {
+
+            logger.LogError("Error en busqueda de eventos", e);
+
+        }
+        //buscar por nombre
+
+        if (listaBusqueda.Count() > 0)
+        {
+
+            EsconderBusquedas = false;
+        }
+        else
+        {
+            EsconderBusquedas = true;
+
+
+        }
+    }
+    protected override async Task OnInitializedAsync()
+    {
+
+
+        oRespuestaTemporal = await Http.GetFromJsonAsync<Respuesta<List<Evento>>>(Url);
+
+        if (oRespuestaTemporal.Data != null)
+        {
+
+            int totalFilas = oRespuestaTemporal.Data.Count();
+
+            cantPaginas = totalFilas / porcion;
+
+
+
+            if (totalFilas % porcion != 0)
+            {
+                if (totalFilas < porcion)
+                {
+                    listaRespuestas = oRespuestaTemporal.Data.GetRange(0, totalFilas);
+
+                }
+                else
+                {
+                    cantPaginas++;
+                    listaRespuestas = oRespuestaTemporal.Data.GetRange(0, porcion);
+
+                }
+
+            }
+            else
+            {
+
+                listaRespuestas = oRespuestaTemporal.Data.GetRange(0, porcion);
+
+
+            }
+        }
+
+
+    }
+
+    public async Task TraerPagina(int nro)
+    {
+        if (oRespuestaTemporal.Data != null)
+        {
+            if (nro == 1)
+            {
+                listaRespuestas = oRespuestaTemporal.Data.GetRange(0, porcion);
+            }
+            else
+            {
+                int indice = (nro * porcion) - porcion;
+                if (nro == cantPaginas)
+                {
+                    int porcionF = oRespuestaTemporal.Data.Count() - indice;
+
+                    listaRespuestas = oRespuestaTemporal.Data.GetRange(indice, porcionF);
+
+                }
+                else
+                {
+
+                    listaRespuestas = oRespuestaTemporal.Data.GetRange(indice, porcion);
+
+                }
+            }
+        }
+
+    }
+}

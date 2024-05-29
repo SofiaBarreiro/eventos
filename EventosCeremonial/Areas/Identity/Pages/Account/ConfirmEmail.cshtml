@@ -1,0 +1,39 @@
+﻿@page
+@model ConfirmEmailModel
+
+
+@using System.Threading;
+@{
+    ViewData["Title"] = "Confirmar corrreo";
+
+  
+}
+
+<h1>@ViewData["Title"]</h1>
+<div class="col-xl-12" style="margin-top:40px;">
+        @foreach (var modeleState in Model.ModelState.Values)
+         {
+            foreach (var error in modeleState.Errors)
+             {
+               <p class="text-danger"> @error.ErrorMessage</p>
+
+             }
+          }
+     </div>
+<p>Su correo ha sido confirmado. En breve será redirigido al sitio para loguearse</p>
+
+
+
+@section Scripts {
+<script type="text/javascript">
+         document.addEventListener("DOMContentLoaded", function () {
+          
+            setTimeout(function(){ window.location.replace(window.origin + "/Identity/Account/Login")}, 6000);
+            
+        });
+
+
+
+    </script>
+}
+

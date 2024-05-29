@@ -1,0 +1,53 @@
+﻿@inject NavigationManager NavigationManager
+@using System.Security.Claims;
+@using System.Text.RegularExpressions;
+
+
+
+
+<AuthorizeView Roles="Administrador, Participante">
+    <Authorized>
+
+     @*   <form method="post" action="Identity/Account/LogOut">*@
+            <button type="button" class="nav-link btn btn-link" @onclick="Salir">Salir</button>
+@*         <button type="button" class="nav-link btn btn-link" @onclick="SalirAD">Salir AD</button>
+*@
+@*        </form>
+*@   
+
+<a  class="nav-link text-white text-decoration-none"  data-bs-toggle="tooltip" data-bs-placement="top" title="Rol: @context.User.GetRol()" >Hola, @getNombre(context.User)</a>
+@*<a  class="nav-link text-white text-decoration-none" href="SignOut">Salir</a>
+*@
+    
+    </Authorized>
+    <NotAuthorized>
+        <ul class="navbar-nav" style="padding: 2px;border: 1px solid #fff;">
+            <li class="nav-item">
+                <a class="nav-link text-white text-decoration-none" href="/selectlogin">Ingresar</a>
+            </li>
+        </ul>
+    </NotAuthorized>
+</AuthorizeView>
+
+
+@code{
+
+
+    private void Salir() => NavigationManager.NavigateTo("/SignOut", true);
+
+
+    //private void SalirAD() => NavigationManager.NavigateTo("/SignOutAD", true);
+
+
+    private string getNombre(ClaimsPrincipal user)
+    {
+        if (Regex.IsMatch(user.Identity.Name, @"^\d+$"))
+        {
+            return user.GetEmail();
+        }
+        return user.Identity.Name;
+    }
+     
+
+
+}

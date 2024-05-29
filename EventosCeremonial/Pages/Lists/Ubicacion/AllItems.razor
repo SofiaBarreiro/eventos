@@ -1,0 +1,103 @@
+﻿@page "/ubicacion"
+@attribute [Authorize]
+
+@using System.Net.Http
+@using System.Net.Http.Json
+@using Data
+@using Data.Response
+
+@inject HttpClient Http
+<AuthorizeView Roles="Administrador, Soporte">
+
+    <br />
+    <br />
+    <center class="panel-pane pane-titulo"><div class="pane-content"><h2 class="activities-sidbar">Ubicaciones</h2></div></center>
+    <br />
+    <br />
+
+    <div class="row">
+        <div class="col-12 text-left">
+            <a type="button" class="btn btn-primary" href="ubicacion/form">Nueva</a>
+        </div>
+    </div>
+
+
+    <table class="table tabla-condensed table-striped dataTable no-footer  " id="ponchoTable" aria-describedby="ponchoTable_info" role="grid">
+
+        @if (oRespuesta == null)
+        {
+            <tr role="row" class="odd">
+                <td class="sorting_1" colspan="5">
+                    <p>@textoNoHayRegistros</p>
+                </td>
+            </tr>
+        }
+        @if (oRespuesta != null && oRespuesta.Data != null)
+        {
+            <thead>
+                <tr role="row">
+
+                    <th>
+                        Domicilio
+                    </th>
+                    <th>
+                        Localidad
+                    </th>
+                    <th>
+                        Provincia
+                    </th>
+                    <th></th>
+                </tr>
+            </thead>
+            <tbody>
+                @foreach (var oElement in oRespuesta.Data)
+                {
+                    <tr role="row" class="odd">
+
+                        <td class="" data-title="Nombre">
+                            <p>@oElement.Domicilio</p>
+                        </td>
+                        <td class="" data-title="Nombre">
+                            <p>@oElement.Localidad</p>
+                        </td>
+                        <td class="" data-title="Nombre">
+                            <p>@oElement.Provincia</p>
+                        </td>
+                        <td>
+                            <a href="/ubicacion/form/@oElement.Id"><i class="fa fa-edit"></i></a>
+                        </td>
+                        @*<td>
+                            <a href="/ubicacion/delete/@oElement.Id"><i class="fa fa-trash"></i></a>
+                            </td>*@
+                    </tr>
+                }
+            </tbody>
+        }
+    </table>
+</AuthorizeView>
+
+@code {
+    public string Url = "/api/ubicacion";
+    public Respuesta<List<Ubicacion>> oRespuesta = new Respuesta<List<Ubicacion>>();
+    public string textoNoHayRegistros { get; set; } = "Cargando...";
+
+
+    protected override async Task OnInitializedAsync()
+    {
+        oRespuesta = await Http.GetFromJsonAsync<Respuesta<List<Ubicacion>>>(Url);
+        if (oRespuesta.Data != null)
+        {
+            if (oRespuesta.Data.Count() == 0)
+            {
+
+                textoNoHayRegistros = "No se encontraron registros";
+                oRespuesta.Data = null;
+            }
+        }
+        else
+        {
+              textoNoHayRegistros = "No se encontraron registros";
+
+        }
+    }
+}

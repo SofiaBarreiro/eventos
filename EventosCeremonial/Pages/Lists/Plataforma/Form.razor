@@ -1,0 +1,94 @@
+﻿@page "/plataforma/form"
+@page "/plataforma/form/{Id:int}"
+@attribute [Authorize]
+
+@inject HttpClient Http
+@inject NavigationManager NavigationManager
+@inject IJSRuntime js
+
+<h1>@accion plataforma</h1>
+
+<EditForm Model="@oPlataforma" OnValidSubmit="@HandleValidSubmit">
+    <DataAnnotationsValidator />
+    <fieldset>
+        <div class="row">
+            <div class="col-md-6 form-group item-form">
+                <label for="nombre">Nombre</label>
+                <InputText id="txtNombrePlataforma" class="form-control" @bind-Value="oPlataforma.Nombre"></InputText>
+                <ValidationMessage For=@(() => oPlataforma.Nombre) />
+            </div>
+        </div>
+        <div class="row">
+            <div class="col-md-2">
+            </div>
+            <div class="col-sm-6 col-md-2">
+                <button class="btn btn-primary btn-block" @onclick="Save"> Guardar </button>
+            </div>
+            <div class="col-sm-6 col-md-2">
+                <button class="btn btn-danger btn-block" @onclick="Cancelar"> Cancelar </button>
+            </div>
+        </div>
+    </fieldset>
+</EditForm>
+
+@code {
+    [Parameter]
+    public int Id { get; set; }
+    public string accion { get; set; }
+    Plataforma oPlataforma = new Plataforma();
+    Respuesta<Object> oRespuesta = new Respuesta<Object>();
+    Respuesta<Plataforma> oRespuestaPlataforma = new Respuesta<Plataforma>();
+    public string Url = "/api/plataforma";
+
+    private void Cancelar() => NavigationManager.NavigateTo("/plataforma", true);
+
+    private async Task Save()
+    {
+        if (Id != 0)
+        {
+            var response = await Http.PutAsJsonAsync<Plataforma>(Url, oPlataforma);
+            oRespuesta = response.Content.ReadFromJsonAsync<Respuesta<Object>>().Result;
+        }
+        else
+        {
+            var response = await Http.PostAsJsonAsync<Plataforma>(Url, oPlataforma);
+            oRespuesta = response.Content.ReadFromJsonAsync<Respuesta<Object>>().Result;
+        }
+        if (oRespuesta.Exito == 1)
+        {
+          NavigationManager.NavigateTo("/plataforma", true);
+        }
+        else
+        {
+            await js.InvokeVoidAsync("focusById", "txtNombrePlataforma");
+        }
+    }
+
+    protected async override Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (firstRender)
+        {
+            await js.InvokeVoidAsync("focusById", "txtNombrePlataforma");
+                      
+
+        }
+    }
+
+    protected override async Task OnInitializedAsync()
+    {
+        if (Id != 0)
+        {
+            oRespuestaPlataforma = await Http.GetFromJsonAsync<Respuesta<Plataforma>>(Url + "/" + Id);
+            oPlataforma = oRespuestaPlataforma.Data;
+            accion = "Editar";
+        }
+        else
+        {
+            accion = "Nueva";
+        }
+    }
+
+    private void HandleValidSubmit()
+    {
+    }
+}

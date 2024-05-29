@@ -1,0 +1,43 @@
+﻿@* UploadFile https://www.youtube.com/watch?v=7OudZqyeHxg&t=6s *@
+@*Instalar paquete BlazorInputFile*@
+
+@page "/fileinput"
+
+@inject IWebHostEnvironment Environment
+@inject EventosCeremonial.IRepository.IFileUpload fileUpload
+
+<h3>FileInput</h3>
+@*<InputFile OnChange="HandleFileSelected"></InputFile>*@
+
+@if (file != null)
+{
+    <p>Name: @file.Name</p>
+    <p>Size in Bytes: @file.Size</p>
+    <p>Fyle type: @file.Type</p>
+}
+
+@code {
+    IFileListEntry file;
+
+   @* async Task HandleFileSelected(IFileListEntry[] files)
+    {
+        file = files.FirstOrDefault();
+        if (file != null)
+        {
+            await fileUpload.UploadAsync(file);
+        }
+    }
+    public async Task UploadAsync(IFileListEntry fileList)
+    {
+        var path = Path.Combine(Environment.ContentRootPath, "Upload", fileList.Name); //Despues que funcione, mover carpeta a wwwroot/files
+        var ms = new MemoryStream();
+        await fileList.Data.CopyToAsync(ms);
+        if(!File.Exists(path)){
+         using (FileStream file = new FileStream(path, FileMode.Create, FileAccess.Write))
+        {
+            ms.WriteTo(file);
+        }
+        }
+       
+    }*@
+}

@@ -1,0 +1,79 @@
+﻿@page "/pais/delete/{Id:int}"
+@attribute [Authorize]
+
+@using Data
+@using Data.Response
+@using System.Net.Http
+@using System.Net.Http.Json
+@inject HttpClient Http
+@inject NavigationManager NavigationManager
+
+<AuthorizeView Roles="Administrador">
+
+<h3>Eliminar país</h3>
+
+<p>¿Deseas eliminar el país: <b>@Nombre</b>?</p>
+
+<div class="row">
+    <div class="col-sm-12">
+        <button href="" class="btn btn-secondary" @onclick="Cancelar">No</button>
+        <button href="" class="btn btn-warning" @onclick="Eliminar">Sí</button>
+    </div>
+</div>
+
+@if (_isVisible)
+{
+    <div id="error" class="row">
+        <div class="col-md-12">
+            <div class="alert alert-danger">
+                <p>Error: @Error</p>
+                <p>Contacte a Soporte.</p>
+            </div>
+        </div>
+    </div>
+}
+</AuthorizeView>
+
+@code {
+    [Parameter]
+    public int Id { get; set; }
+    public string Nombre { get; set; }
+    public string Cultura { get; set; }
+    public string Error { get; set; }
+    private bool _isVisible = false;
+    Pai oPais = new Pai();
+    Respuesta<Object> oRespuesta = new Respuesta<Object>();
+    Respuesta<Pai> oRespuestaPais = new Respuesta<Pai>();
+    public string Url = "/api/pais";
+
+    protected override async Task OnInitializedAsync()
+    {
+        if (Id != 0)
+        {
+            oRespuestaPais = await Http.GetFromJsonAsync<Respuesta<Pai>>(Url + "/" + Id);
+            oPais = oRespuestaPais.Data;
+
+            Nombre = oPais.Nombre;
+            Cultura = oPais.Cultura;
+        }
+    }
+
+    private void Cancelar() => NavigationManager.NavigateTo("/pais", true);
+
+    private async Task Eliminar()
+    {
+        //ESTA EN DESUSO, NO SE LLAMA A ELIMINAR PAISES
+        //NO DEBERIA USARSE YA LA LISTA DE PAISES ESTAN INDEXADA A  LA DE ORGANISMOS
+        var response = await Http.DeleteAsync(Url + "/" + Id);
+        oRespuesta = response.Content.ReadFromJsonAsync<Respuesta<Object>>().Result;
+
+        if (oRespuesta.Exito != 0)
+        {
+            NavigationManager.NavigateTo("/pais", true);
+        }
+        else
+        {
+            _isVisible = !_isVisible;
+        }
+    }
+}

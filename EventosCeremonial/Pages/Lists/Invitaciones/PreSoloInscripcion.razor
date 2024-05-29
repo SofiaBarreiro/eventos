@@ -1,0 +1,354 @@
+﻿@page "/pre/{Id:int}"
+
+
+@using Data
+@using Data.Response
+@using System.Net.Http
+@using System.Net.Http.Json
+@inject HttpClient Http
+@inject NavigationManager NavigationManager
+@inject IJSRuntime js
+<br />
+<br />
+
+<center hidden=@Spinner>
+
+    <!-- spinner-border -->
+    <div class="spinner-border" role="status">
+        <span class="sr-only">Loading</span>
+    </div>
+</center>
+<EventosCeremonial.Components.ModalInscribirse @ref="ModalInscribirse"></EventosCeremonial.Components.ModalInscribirse>
+<button @onclick="() => ModalInscribirse.Open(oRespuestaEvento.Data.Id, false, true)" id="botonModalInscribir" hidden="hidden">Confirmar inscripcion</button>
+
+<center hidden=@Mostrar>
+    <div class="card alert alert-primary" style="display: @esconderDataEvento;max-width: 50%;">
+        <img src="@ImagenSrc" class="card-img-top" alt="...">
+
+        <div class="card-body">
+            <h4 class="card-title">@NombreEvento</h4>
+            <p class="card-text">@DescripcionEvento</p>
+          
+        </div>
+    </div>
+    <div class="alert alert-danger" style="display: @eventoVencido;" role="alert">Este evento ya no se encuentra disponible</div>
+    <div class="alert">
+        <button class="btn btn-primary btn-md" @onclick="mostrarModalInscribirse" hidden>Quiero invitar a alguien</button>
+    </div>
+</center>
+<br />
+<br />
+<br />
+<br />
+<br />
+<br />
+<br />
+<br />
+<br />
+<br />
+<br />
+
+
+
+@code {
+
+    [Parameter]
+    public int Id { get; set; }
+
+
+    private string esconderDataEvento { get; set; } = "None";
+    private string eventoVencido { get; set; } = "None";
+
+    public bool Mostrar { get; set; } = true;
+    public bool Spinner { get; set; } = false;
+
+    public string email { get; set; } = "";
+
+    private EventosCeremonial.Components.ModalInscribirse ModalInscribirse { get; set; }
+
+    public string NombreEvento { get; set; }
+    public string DescripcionEvento { get; set; }
+    public string ImagenSrc { get; set; }
+    public string Agenda { get; set; }
+    public string VinculoExpiro { get; set; } = "none";
+    public bool EsconderForm { get; set; } = true;
+
+    public string UrlEvento = "/api/evento";
+    public string UrlArchivo = "/api/archivos";
+
+    Respuesta<Evento> oRespuestaEvento = new Respuesta<Evento>();
+
+    Evento oEvento = new Evento();
+
+    LoggerManger logger = new LoggerManger();
+
+
+    private void ShowTabla(bool mostrar)
+    {
+        if (mostrar)
+        {
+            esconderDataEvento = "Block";
+
+        }
+        else
+        {
+
+            esconderDataEvento = "None";
+
+        }
+    }
+
+    private async Task mostrarModalInscribirse()
+    {
+
+        await js.InvokeVoidAsync("AbrirModalInscribir");
+
+    }
+
+    protected async override Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (firstRender == false)
+        {
+
+            if (oRespuestaEvento.Data == null)
+            {
+
+                await js.InvokeVoidAsync("alert", "El evento ya finalizó.");
+                NavigationManager.NavigateTo("/", true);
+            }
+            else
+            {
+                if (oRespuestaEvento.Data.IdEstado != 1)
+                {
+
+                    await js.InvokeVoidAsync("alert", "El evento ya finalizó.");
+                    NavigationManager.NavigateTo("/", true);
+                }
+                else
+                {
+                    mostrarModalInscribirse();
+                }
+            }
+
+            
+        }
+
+
+
+    }
+
+    protected override async Task OnInitializedAsync()
+    {
+        oRespuestaEvento = await Http.GetFromJsonAsync<Respuesta<Evento>>(UrlEvento + "/" + Id);
+        await TraerDatosDelEventoAlCard(Id);
+
+
+        //if (oRespuestaInvitaciones.Data != null)
+        //{
+
+            //dato = oRespuestaInvitaciones.Data.ElementAt(0);
+
+            //switch (T)
+            //{
+            //    case "p":
+
+            //        tipo = "personalizada";
+
+            //        oRespuesta = await Http.GetFromJsonAsync<Respuesta<EventoParticipante>>(UrlEventoParticipante + "/" + Id);
+
+            //        try
+            //        {
+
+            //            if (oRespuesta.Data != null)
+            //            {//SI EL ESTADO DEL INVITADO ES PENDIENTE VA A HABILITAR EL BOTON
+            //                await TraerDatosDelEventoAlCard(Id);
+            //                oRespuestaPersona = await Http.GetFromJsonAsync<Respuesta<Persona>>(UrlPersona + "/" + IdPersona);
+
+            //                if (oRespuestaPersona.Data != null)
+            //                {
+            //                    email = oRespuestaPersona.Data.MailContacto;
+            //                    dniAux = oRespuestaPersona.Data.NumeroDocumento;
+
+            //                }
+            //                if (oRespuesta.Data.EstadodeInscripcion == "Pendiente")
+            //                {
+
+                                ShowTabla(true);
+            //                }
+            //                else
+            //                {
+            //                    //preincripto o aceptado
+            //                    ShowTabla(false);
+
+            //                    if (oRespuesta.Data.EstadodeInscripcion == "Preinscripto" || oRespuesta.Data.EstadodeInscripcion == "Preinscripto I." || oRespuesta.Data.EstadodeInscripcion == "Aceptado")
+            //                    {
+            //                        eventoConfirmado = "block";
+
+            //                    }
+            //                    else
+            //                    {
+            //                        //evento pasado
+            //                        if (oRespuesta.Data.ConfirmaAsistencia == "No")
+            //                        {
+            //                            eventoVencido = "block";
+            //                        }
+            //                        else
+            //                        {
+            //                            //fue rechazada la invitacion
+            //                            if (oRespuesta.Data.EstadodeInscripcion == "No aceptado")
+            //                            {
+            //                                eventoNoAceptado = "block";
+            //                            }
+
+
+            //                        }
+
+            //                    }
+
+            //                }
+
+            //            }
+            //            else
+            //            {
+            //                logger.LogError("Error OnInitializedAsync pre");
+
+
+            //            }
+
+            //        }
+            //        catch (Exception e)
+            //        {
+
+            //            if (esconderDataEvento == "None")
+            //            {
+
+            //                VinculoExpiro = "block";
+            //            }
+
+            //        }
+
+            //        break;
+            //    //ESTAS DOS CATEGORIAS NO SE ESTAN UTILIZANDO, SOLO HAY EVENTOS PERSONALIZADOS POR EL MOMENTO
+            //    case "m":
+            //        tipo = "masiva";
+            //        break;
+            //    default:
+            //        tipo = "";
+            //        break;
+            //}
+        //}
+
+
+        Mostrar = false;
+        Spinner = true;
+    }
+
+
+    public async Task traerPortadaDelEvento(Archivo archivo)
+    {
+        var root = FuncionesBasicas.getAppSettings();
+        //TRAE LA PORTADA DEL EVENTO PARA AGREGARLO AL DIV QUE MUESTA EL BOTON
+        try
+        {
+            string path = root.GetSection("DVArchivos")["EventosCeremonial"] + "/Temporales/Otros/" + archivo.NombrePortada;
+
+            if (!File.Exists(path))
+            {
+                //SI NO ESTA EN EL DIRECTORIO VIRTUAL LO VA A TRAER DE LA BASE DE DATOS
+                Byte[] buffer = new Byte[0];
+
+                if (archivo.Portada != null)
+                {
+                    buffer = archivo.Portada;
+                    using (MemoryStream m = new MemoryStream(buffer))
+                    {
+                        using (System.IO.FileStream fileStream = new FileStream(path, FileMode.Create, FileAccess.Write))
+                        {
+
+                            m.WriteTo(fileStream);
+
+                        }
+
+
+                    }
+
+                }
+            }
+        }
+        catch (Exception e)
+        {
+            logger.LogError("traerPortadaDelEvento", e);
+        }
+    }
+
+    private async Task TraerDatosDelEventoAlCard(int id)
+    {
+        var root = FuncionesBasicas.getAppSettings();
+
+
+        try
+        {
+            //if (dato.Qr != null)
+            //{
+
+                //var key = root.GetSection("EncryptString")["Key"];
+                //VA A DESCENRIPTAR EL CODIGO QUE APARECE EN LA URL, SI LOGRA DESCENCRIPTARSE CON LA KEY QUE ESTA EN FUNCIONES BASICAS SIGNIFICA QUE EL LINK PROVIENE DEL CORREO ELECTRONICO QUE LE FUE ENVIADO AL USUARIO
+                //DE LO CONTRARIO PODRIA TRATARSE DE UNA URL FALSA
+                //var decrypted = EncryptHelper.DecryptString(Qr, key);
+
+                //if (dato.Qr.ToString().Contains(decrypted))
+                //{
+                    //USUARIO AUTENTIFICADO
+
+                    var oRespuestaArchivo = await Http.GetFromJsonAsync<Respuesta<Archivo>>(UrlArchivo + "/" +Id);
+                    var datosEvento = oRespuestaEvento.Data;
+                    NombreEvento = datosEvento.Nombre;
+                    DescripcionEvento = datosEvento.Descripcion;
+                    Agenda = datosEvento.Agenda;
+
+                    //if (oRespuestaArchivo.Data != null)
+                    //{
+
+                    //    await traerPortadaDelEvento(oRespuestaArchivo.Data);
+                    //    string urlPortada = Http.BaseAddress.AbsoluteUri + "Archivos/Temporales/Otros/" + oRespuestaArchivo.Data.NombrePortada;
+
+                    //    //string localwwwroot = root.GetSection("DVArchivos")["EventosCeremonial"] + "/Temporales/Otros/" + oRespuestaArchivo.Data.NombrePortada;
+
+                    //    //if (File.Exists(localwwwroot))
+                    //    //{
+                    //    //    ImagenSrc = urlPortada;
+                    //    //}
+                    //    //else
+                    //    //{
+                    //        //SI NO ENCONTRO LA IMAGEN VA  A PONER EN SU DEFECTO LA QUE ESTA COMO POR DEFECTO EN LA GALERIA
+                    //        ImagenSrc = Http.BaseAddress.AbsoluteUri + "mteyss-atajo-mas-info-001.png";
+                    //    //}
+
+                    //}
+                    //else
+                    //{
+
+                        ImagenSrc = Http.BaseAddress.AbsoluteUri + "mteyss-atajo-mas-info-001.png";
+
+                    //}
+
+                //}
+                //else
+                //{
+                //    //INGRESO NO AUTORIZADO
+                //    oRespuestaEvento.Data.Id = 0;
+                //    Id = 0;
+                //    await js.InvokeVoidAsync("alert", "Usted no posee permisos para visualizar este sitio.");
+                //    NavigationManager.NavigateTo("/", true);
+                //}
+
+            
+
+        }
+        catch (Exception e)
+        {
+
+            logger.LogError("Error en detectar qr", e);
+        }
+    }
+}

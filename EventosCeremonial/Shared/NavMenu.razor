@@ -1,0 +1,59 @@
+﻿<ol class="breadcrumb">
+    <AuthorizeView Roles="Administrador, Participante, Soporte">
+        <li class="nav-item px-1">
+            <NavLink class="nav-link" href="" Match="NavLinkMatch.All">
+                Inicio
+            </NavLink>
+        </li>
+    </AuthorizeView>
+    <AuthorizeView Roles="Administrador, Soporte">
+        <li class="nav-item px-1">
+            <NavLink class="nav-link" href="evento">
+                Eventos
+            </NavLink>
+        </li>
+
+        <li class="nav-item px-1">
+            <NavLink class="nav-link" href="organismo">
+                Organismos
+            </NavLink>
+        </li>
+
+        <li class="nav-item px-1">
+            <NavLink class="nav-link" href="persona">
+                Personas
+            </NavLink>
+        </li>
+        <li class="nav-item px-1">
+            <NavLink class="nav-link" href="ubicacion">
+                Presencial
+            </NavLink>
+        </li>
+        <li class="nav-item px-1">
+            <NavLink class="nav-link" href="plataforma">
+                Plataformas
+            </NavLink>
+        </li>
+
+        <li class="nav-item px-1">
+            <NavLink class="nav-link" href="eventospasados">
+                Eventos finalizados
+            </NavLink>
+        </li>
+           <li class="nav-item px-1">
+            <NavLink class="nav-link" href="eventosenejecucion">
+                Control de acceso
+            </NavLink>
+        </li>
+    </AuthorizeView>
+    @*<AuthorizeView Roles="Administrador, Soporte">
+        <li class="nav-item px-1">
+            <NavLink class="nav-link" href="eventoparticipante">
+                eventoParticipantes
+            </NavLink>
+        </li>
+
+
+    </AuthorizeView>*@
+</ol>
+

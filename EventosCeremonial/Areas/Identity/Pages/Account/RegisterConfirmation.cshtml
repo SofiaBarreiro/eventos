@@ -1,0 +1,77 @@
+﻿@page
+@model RegisterConfirmationModel
+@{
+    ViewData["Title"] = "Confirmación de registro ";
+}
+
+<h1>@ViewData["Title"]</h1>
+@{
+    if (@Model.IsConfirmed == true && @Model.Email != "")
+    {
+        <p>
+
+            Su correo ya fue confirmado. Será redirigido al sitio para loguearse.
+        </p>
+
+        @section Scripts {
+
+
+
+    <script type="text/javascript">
+
+
+
+         document.addEventListener("DOMContentLoaded", function () {
+
+            setTimeout(function(){ window.location.replace(window.origin + "/Identity/Account/Login")}, 10000);
+
+        });
+
+
+
+    </script>
+    }
+
+
+    }
+    else
+    {
+        if (@Model.Email != null)
+        {
+            <p>
+                Por favor revise su bandeja de entrada. Le hemos enviado un correo.
+            </p>
+        }
+        else
+        {
+
+            <p>
+                El correo ingresado no pertenece a un usuario regitrado. Será redirigido al Registro.
+            </p>
+            @section Scripts {
+
+
+
+    <script type="text/javascript">
+
+
+
+         document.addEventListener("DOMContentLoaded", function () {
+
+            setTimeout(function(){ window.location.replace(window.origin + "/Identity/Account/Register")}, 10000);
+
+        });
+
+
+
+    </script>
+    }
+
+
+        }
+    }
+}
+
+
+
+

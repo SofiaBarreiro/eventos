@@ -1,0 +1,59 @@
+﻿@*@page "/signin-wsfed"*@
+
+@using System.Security.Claims;
+@using EventosCeremonial
+@using EventosCeremonial.Helpers;
+@using Microsoft.AspNetCore.Authentication
+@using Microsoft.AspNetCore.Authentication.WsFederation;
+@using Microsoft.AspNetCore.Authentication.Cookies;
+@using Microsoft.AspNetCore.Components.Authorization;
+@using System.Threading.Tasks;
+
+@using Microsoft.AspNetCore.Identity;
+@using Microsoft.AspNetCore.Identity.EntityFrameworkCore;
+@inject AuthenticationStateProvider AuthenticationStateProvider
+@inject Microsoft.JSInterop.IJSRuntime Jsruntime
+@inject NavigationManager NavigationManager
+
+
+
+@code {
+
+    ClaimsPrincipal user;
+    private string _authMessage;
+    private string _userId;
+    LoggerManger logger = new LoggerManger();
+
+    protected override async Task OnInitializedAsync()
+    {
+
+        //try
+        //{
+        //    var authState = await AuthenticationStateProvider.GetAuthenticationStateAsync();
+
+        //    user = authState.User;
+
+        //    if (user.Identity.IsAuthenticated)
+        //    {
+        //        _authMessage = $"{user.Identity.Name} is authenticated.";
+        //        _userId = $"User Id: {user.FindFirst(c => c.Type == "sub")?.Value}";
+        //        logger.LogError("Usuario se logueo" + _authMessage);
+
+        //    }
+        //    else
+        //    {
+
+        //        logger.LogError("Error en WSFED No se logueo");
+        //        NavigationManager.NavigateTo("/", true);
+
+        //    }
+        //}
+        //catch (Exception e)
+        //{
+
+        //    logger.LogError("Error en WSFED No se logueo", e);
+
+        //}
+    }
+
+}

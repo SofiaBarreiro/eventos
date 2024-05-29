@@ -1,0 +1,48 @@
+﻿@page "/eventoparticipante/disp/{Id:int}"
+/pre/00000000-0000-0000-0000-000000000000/5849
+e6e0-6e7f-455a-99c3-c96d1e1cb996/p/5267
+
+@attribute [Authorize]
+@inject HttpClient Http
+@inject NavigationManager NavigationManager
+@inject IJSRuntime js
+<h3>EventoParticipante</h3>
+
+
+
+@code {
+    [Parameter]
+    public int Id { get; set; }
+    public string accion { get; set; }
+   Evento oEvento = new Evento();
+
+   
+
+     public string Url = "/api/evento";
+
+    Respuesta<Object> oRespuesta = new Respuesta<Object>();
+    Respuesta<Evento> oRespuestaEvento = new Respuesta<Evento>();
+
+
+
+     protected override async Task OnInitializedAsync()
+    {
+        if (Id != 0)
+        {
+
+
+        @*  oRespuestaEvento = await Http.GetFromJsonAsync<Respuesta<Evento>>(Url + "/" + Id);
+
+            oEvento = oRespuestaEvento.Data;*@
+
+            
+    }
+
+      
+    }
+
+ 
+    
+
+
+}

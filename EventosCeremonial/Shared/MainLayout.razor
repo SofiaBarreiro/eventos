@@ -1,0 +1,63 @@
+﻿@inherits LayoutComponentBase
+    <header>
+    <nav class="navbar navbar-expand-sm navbar-light navbar-toggleable-sm bg-celeste-argentina">
+        <div class="container">
+            <a class="navbar-brand" href="/">
+                <img alt="Argentina.gob.ar" src="argentinagob-2.svg" height="50">
+            </a>
+            <div class="navbar-collapse  d-sm-inline-flex flex-sm-row-reverse">
+                <LoginDisplay />
+            </div>
+        </div>
+    </nav>
+    <div class="panel-pane pane-jumbotron">
+        <div class="pane-content">
+            <section class="jumbotron align-mid" style="background-image:url(jumbotron.jpg);">
+              
+        <div class="overlay"></div>
+                <div class="jumbotron_bar ">
+                    <div class="container" >
+                        <div class="row">
+                            <div class="col-md-12">
+                                <NavMenu />
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="jumbotron_body">
+                    <div class="container">
+                        <div class="row">
+                            <div class="col-xs-12 col-md-12 text-center">
+                                <p>
+                                </p>
+                                <h1>Dirección de Ceremonial y Relaciones Institucionales</h1>
+                                <p></p>
+                                <p>Eventos organizados por el Ministerio de Trabajo, Empleo y Seguridad Social de la Nación.</p>
+                                <p></p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </section>
+        </div>
+    </div>
+</header>
+<main role="main" class="main container">
+    <div style="min-height: calc(100vh - 520px);height100%">
+        @Body
+    </div>
+</main>
+<footer>
+    <div class="container-fluid">
+        <div class="row sub-footer">
+            <div class="container">
+                <div class="col-sm-6 m-y-1 p-x-0">
+                    <img class="image-responsive" width="288" height="40" src="logo_argentina_unida-blanco.svg" alt="Argentina Unida">
+                </div>
+            </div>
+        </div>
+    </div>
+</footer>
+
+
+

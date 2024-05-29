@@ -1,0 +1,382 @@
+﻿@inject HttpClient Http
+@inject NavigationManager uriHelper
+@inject IJSRuntime js
+@inject NavigationManager NavigationManager
+@using System.Threading;
+
+
+<div class="modal @ModalClass" tabindex="-1" role="dialog" style="display:@ModalDisplay">
+    <div class="modal-dialog" role="document">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Ingreso con DNI</h5>
+
+            </div>
+            <div class="modal-body">
+                <div class="col-md-6 form-group item-form" h>
+                    <label for="">Ingrese el número de DNI</label>
+                    <input type="text" class="form-control" @bind-value="inputDNIIngreso" id="">
+                </div>
+
+                <div class="modal-footer">
+                    <button type="button" @onclick="Buscar" class="btn btn-primary">Buscar</button>
+                    <button type="button" @onclick="Limpiar" class="btn btn-primary">Limpiar</button>
+                    <button type="button" class="btn btn-secondary" data-dismiss="modal" @onclick="() => Close()">Cancelar</button>
+                </div>
+                <div hidden="@EsconderAreaDatos">
+                    <div class="table">
+
+                        <div class="row">
+                            <div class="col-md-6">
+                                Nombre:
+                            </div>
+                            <div class="col-md-6">
+                                @Nombre
+                            </div>
+                        </div>
+                        <div class="row">
+                            <div class="col-md-6">
+                                Apellido:
+                            </div>
+                            <div class="col-md-6">
+                                @Apellido
+                            </div>
+                        </div>
+                        <div class="row">
+                            <div class="col-md-6">
+                                Correo:
+                            </div>
+                            <div class="col-md-6">
+                                @Email
+                            </div>
+                        </div>
+                        <div class="row">
+                            <div class="col-md-6">
+                                Inscripción:
+                            </div>
+                            <div class="col-md-6">
+                                <span style="color:@colorEstado"> @Estado</span>
+
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="">
+                        <center>
+                            <p>@Ingreso</p>
+                        </center>
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" @onclick="Save" class="btn btn-primary" disabled="@desHabilitarGuardar">Confirmar</button>
+
+                    </div>
+
+                    @*<p>Nombre:<span>@Nombre</span>  </p>
+                        <p>Apellido: <span>@Apellido</span>  </p>
+                        <p>Correo:<span>@Email</span>  </p>
+                        <p>Inscripción: <span style="color:Green">@Estado</span> </p>
+                        </div>*@
+
+
+                </div>
+
+            </div>
+        </div>
+    </div>
+
+</div>
+
+@if (ShowBackdrop)
+{
+    <div class="modal-backdrop fade show"></div>
+}
+
+
+@code {
+
+
+    public Guid Guid = Guid.NewGuid();
+    public string ModalDisplay = "none;";
+    public string ModalClass = "";
+    public bool ShowBackdrop = false;
+    public int IdInvitado { get; set; } = 0;
+
+    public string inputDNIIngreso { get; set; } = "";
+    public string Url = "/api/evento";
+
+    public bool EsconderAreaDatos { get; set; } = true;
+
+    public string Email { get; set; } = "";
+    public string Nombre { get; set; } = "";
+    public string Apellido { get; set; } = "";
+    public string Estado { get; set; } = "";
+    public string colorEstado { get; set; } = "Green";
+    public int idPuntoDeAcceso { get; set; } = 0;
+    public string Ingreso { get; set; } = "";
+    public bool desHabilitarGuardar { get; set; } = true;
+
+    Respuesta<Evento> oRespuestaEvento = new Respuesta<Evento>();
+    LoggerManger logger = new LoggerManger();
+
+    public string UrlConfirma = "/api/eventoparticipante/ConfirmaAsistencia";
+    public string UrlPersona = "/api/persona";
+    Respuesta<Persona> oRespuestaPersona = new Respuesta<Persona>();
+    public string UrlEventoParticipante = "/api/eventoparticipante";
+    Respuesta<List<Invitacion>> oRespuestaInvitaciones = new Respuesta<List<Invitacion>>();
+    Respuesta<EventoParticipante> oRespuestaEventoParticipante = new Respuesta<EventoParticipante>();
+    List<EventoParticipante> eventoParticipantes = new List<EventoParticipante>();
+    List<Invitacion> invitaciones = new List<Invitacion>();
+    List<Persona> personasYaInvitadas = new List<Persona>();
+    List<Persona> personas = new List<Persona>();
+    Persona personaInvitada = new Persona();
+    Respuesta<EventoParticipante> respuestaSave = new Respuesta<EventoParticipante>();
+
+
+    Evento oEvento = new Evento();
+    public string UrlInvitacion = "/api/invitacion";
+
+    public async Task Open(int Id)
+    {
+        try
+        {
+            ModalDisplay = "block";
+            ModalClass = "Show";
+            ShowBackdrop = true;
+            StateHasChanged();
+            personaInvitada = null;
+
+            TraerInvitacionesAlModal(Id);
+
+
+        }
+        catch (Exception e)
+        {
+
+            logger.LogError("Error en abrir formulario", e);
+
+        }
+
+    }
+
+    public async Task Limpiar()
+    {
+
+        LimpiarModal();
+        inputDNIIngreso = "";
+
+    }
+
+
+    public async Task TraerInvitacionesAlModal(int Id)
+    {
+
+        oRespuestaEvento = await Http.GetFromJsonAsync<Respuesta<Evento>>(Url + "/" + Id);
+
+        if (oRespuestaEvento.Data != null)
+        {
+            oEvento = oRespuestaEvento.Data;
+
+            oRespuestaInvitaciones = await Http.GetFromJsonAsync<Respuesta<List<Invitacion>>>(UrlInvitacion + "/" + Id);
+
+            if (oRespuestaInvitaciones.Exito == 0)
+            {
+                FuncionesBasicas.reloadPage(uriHelper);
+
+
+            }
+            else
+            {
+
+                invitaciones = oRespuestaInvitaciones.Data;
+
+                foreach (Invitacion item in invitaciones)
+                {
+                    if (item.IdPersona != null)
+                    {
+                        var personaAux = await Http.GetFromJsonAsync<Respuesta<Persona>>(UrlPersona + "/" + item.IdPersona);
+
+                        if (personaAux.Exito == 1)
+                        {
+                            Persona aux = personaAux.Data;
+                            //ME QUEDO SOLO CON EL DNI
+                            aux = NormalizarDNI(aux);
+
+                            if (personasYaInvitadas.Any(x => x.NumeroDocumento == aux.NumeroDocumento && x.TipoDocumento == aux.TipoDocumento) == false)
+                            {
+                                //SI YA LA AGREGAR Y ESTABA CON OTRO NUMEROS DE DNI NO LA AGREGO PARA QUE NO INGRESE DOS VECES
+                                personasYaInvitadas.Add(aux);
+
+                            }
+                        }
+                    }
+                }
+
+            }
+
+        }
+
+    }
+
+
+    private Persona NormalizarDNI(Persona aux)
+    {
+
+
+        if (aux.TipoDocumento == "CUIL" || aux.TipoDocumento == "DNI")
+        {
+            if (aux.TipoDocumento == "CUIL")
+            {
+                if (aux.NumeroDocumento.Length == 11)
+                {
+                    aux.NumeroDocumento = aux.NumeroDocumento.Substring(2, 8);
+                }
+            }
+            //ACA PASAN TODOS A DNI
+            if (aux.NumeroDocumento.StartsWith("0"))
+            {
+                //dnis empezados en cero
+                aux.NumeroDocumento = aux.NumeroDocumento.Substring(1, 7);
+            }
+
+        }
+
+        return aux;
+
+    }
+
+    public void Close()
+    {
+        ModalDisplay = "none";
+        ModalClass = "";
+        ShowBackdrop = false;
+        StateHasChanged();
+        LimpiarModal();
+        colorEstado = "Green";
+        personaInvitada = null;
+        inputDNIIngreso = "";
+        LimpiarModal();
+    }
+    private async Task Save()
+    {
+
+        if (personaInvitada.MailContacto != "" && personaInvitada.NumeroDocumento != "")
+        {
+            if (personaInvitada.TipoDocumento == "DNI" || personaInvitada.TipoDocumento == "CUIL")
+            {
+
+                if (oRespuestaInvitaciones.Data.Any(x => x.IdPersona == personaInvitada.Id))
+                {
+                    var invitadoObjeto = oRespuestaInvitaciones.Data.Where(x => x.IdPersona == personaInvitada.Id).ToList().ElementAt(0);
+
+                    respuestaSave = await Http.GetFromJsonAsync<Respuesta<EventoParticipante>>(UrlEventoParticipante + "/AsistioInvitadoConDNI/" + personaInvitada.Id + "/" + idPuntoDeAcceso + "/" + invitadoObjeto.Id);
+
+
+                    if (respuestaSave.Mensaje == "Permitido")
+                    {
+
+                        Ingreso = "Permitido";
+                        desHabilitarGuardar = true;
+
+                    }
+                    else
+                    {
+
+                        Ingreso = "Denegado";
+                        desHabilitarGuardar = true;
+                    }
+                }
+
+                //}
+            }
+        }
+    }
+    private async Task Buscar()
+    {
+        LimpiarModal();
+
+        try
+        {
+            if (inputDNIIngreso != "")
+            {
+
+
+                if (personasYaInvitadas.Any(x => x.NumeroDocumento == inputDNIIngreso))
+                {
+
+                    personaInvitada = personasYaInvitadas.Where(x => x.NumeroDocumento == inputDNIIngreso).ToList().ElementAt(0);
+
+                    if (personaInvitada.TipoDocumento == "CUIL" || personaInvitada.TipoDocumento == "DNI")
+                    {
+
+                        var idInviacion = invitaciones.Where(x => x.IdPersona == personaInvitada.Id).ToList();
+                        var oRespuestaEventoParticipante = await Http.GetFromJsonAsync<Respuesta<EventoParticipante>>(UrlEventoParticipante + "/" + idInviacion.ElementAt(0).Id);
+                        CompletarModalDNI(personaInvitada, oRespuestaEventoParticipante.Data);
+                        EsconderAreaDatos = false;
+                        desHabilitarGuardar = false;
+                    }
+                    else
+                    {
+                        Ingreso = "No se encontró";
+
+                        EsconderAreaDatos = false;
+                        desHabilitarGuardar = true;
+
+                    }
+                }
+                else
+                {
+                    EsconderAreaDatos = false;
+                    Ingreso = "No se encontró";
+
+                    desHabilitarGuardar = true;
+
+
+
+                }
+
+            }
+
+        }
+        catch (Exception ex)
+        {
+            logger.LogError("Error pre save", ex);
+
+        }
+    }
+    private void CompletarModalDNI(Persona personaInvitada, EventoParticipante eventoParticipante)
+    {
+
+        Email = personaInvitada.MailContacto;
+        Nombre = personaInvitada.Nombre;
+        Apellido = personaInvitada.Apellido;
+
+        Estado = eventoParticipante.EstadodeInscripcion;
+        if (Estado == "No aceptado" || Estado == "Asistió")
+        {
+            colorEstado = "Red";
+        }
+        else
+        {
+            if (Estado == "Pendiente" || Estado == "" || Estado == "Preinscripto" || Estado == "Prenscripto I.")
+            {
+                colorEstado = "Orange";
+            }
+        }
+
+    }
+
+    private void LimpiarModal()
+    {
+        EsconderAreaDatos = true;
+        Email = "";
+        Nombre = "";
+        Apellido = "";
+        Estado = "";
+        colorEstado = "Green";
+        personaInvitada = null;
+        Ingreso = "";
+
+    }
+
+    }
+

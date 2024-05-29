@@ -1,0 +1,18 @@
+﻿@page
+@model ConfirmEmailChangeModel
+@{
+    ViewData["Title"] = "Su casilla de correo ha sido confirmada";
+}
+
+<h1>@ViewData["Title"]</h1>
+    <div class="col-xl-12" style="margin-top:40px;">
+        @foreach (var modeleState in Model.ModelState.Values)
+         {
+            foreach (var error in modeleState.Errors)
+             {
+               <p class="text-danger"> @error.ErrorMessage</p>
+
+             }
+          }
+     </div>
+<partial name="_StatusMessage" model="Model.StatusMessage" />

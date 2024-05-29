@@ -1,0 +1,108 @@
+﻿@page "/ubicacion/form"
+@page "/ubicacion/form/{Id:int}"
+@attribute [Authorize]
+
+@inject HttpClient Http
+@inject NavigationManager NavigationManager
+@inject IJSRuntime js
+
+<h1>@accion ubicación</h1>
+
+<EditForm Model="@oUbicacion" OnValidSubmit="@HandleValidSubmit">
+    <DataAnnotationsValidator />
+    <fieldset>
+        <div class="row">
+            <div class="col-md-10 form-group item-form">
+                <label for="domicilio">Domicilio</label>
+                <InputText id="txtDomicilioUbicacion" class="form-control" @bind-Value="oUbicacion.Domicilio"></InputText>
+                <ValidationMessage For="() => oUbicacion.Domicilio" />
+            </div>
+        </div>
+        <div class="row">
+            <div class="col-md-10 form-group item-form">
+                <label for="localidad">Localidad</label>
+                <InputText class="form-control" @bind-Value="oUbicacion.Localidad"></InputText>
+                <ValidationMessage For="() => oUbicacion.Localidad" />
+            </div>
+        </div>
+        <div class="row">
+            <div class="col-md-10 form-group item-form">
+                <label for="provincia">Provincia</label>
+                <InputText class="form-control" @bind-Value="oUbicacion.Provincia"></InputText>
+                <ValidationMessage For="() => oUbicacion.Provincia" />
+            </div>
+        </div>
+        <div class="row">
+            <div class="col-md-6">
+            </div>
+            <div class="col-sm-6 col-md-2">
+                <button class="btn btn-primary btn-block" @onclick="Save"> Guardar </button>
+            </div>
+            <div class="col-sm-6 col-md-2">
+                <button class="btn btn-danger btn-block" @onclick="Cancelar"> Cancelar </button>
+            </div>
+
+        </div>
+    </fieldset>
+</EditForm>
+
+@code {
+    [Parameter]
+    public int Id { get; set; }
+    public string accion { get; set; }
+
+    Ubicacion oUbicacion = new Ubicacion();
+    Respuesta<Object> oRespuesta = new Respuesta<Object>();
+    Respuesta<Ubicacion> oRespuestaUbicacion = new Respuesta<Ubicacion>();
+    public string Url = "/api/ubicacion";
+
+    private void Cancelar() => NavigationManager.NavigateTo("/ubicacion", true);
+
+    private async Task Save()
+    {
+        if (Id != 0)
+        {
+            var response = await Http.PutAsJsonAsync<Ubicacion>(Url, oUbicacion);
+            oRespuesta = response.Content.ReadFromJsonAsync<Respuesta<Object>>().Result;
+        }
+        else
+        {
+            var response = await Http.PostAsJsonAsync<Ubicacion>(Url, oUbicacion);
+            oRespuesta = response.Content.ReadFromJsonAsync<Respuesta<Object>>().Result;
+        }
+
+        if (oRespuesta.Exito == 1)
+        {
+          NavigationManager.NavigateTo("/ubicacion", true);
+        }
+        else
+        {
+            await js.InvokeVoidAsync("focusById", "txtDomicilioUbicacion");
+        }
+    }
+
+    protected async override Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (firstRender)
+        {
+            await js.InvokeVoidAsync("focusById", "txtDomicilioUbicacion");
+        }
+    }
+    protected override async Task OnInitializedAsync()
+    {
+        if (Id != 0)
+        {
+            oRespuestaUbicacion = await Http.GetFromJsonAsync<Respuesta<Ubicacion>>(Url + "/" + Id);
+            oUbicacion = oRespuestaUbicacion.Data;
+            accion = "Editar";
+        }
+        else
+        {
+            accion = "Nueva";
+        }
+    }
+    private void HandleValidSubmit()
+    {
+
+    }
+}

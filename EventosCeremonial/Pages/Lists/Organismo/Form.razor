@@ -1,0 +1,143 @@
+﻿@page "/organismo/form"
+@page "/organismo/form/{Id:int}"
+@attribute [Authorize]
+
+@inject HttpClient Http
+@inject NavigationManager NavigationManager
+@inject IJSRuntime js
+
+ <h1>@accion organismo</h1>
+
+<EditForm Model="@oOrganismo" >
+    <DataAnnotationsValidator />
+    <fieldset>
+        <div class="row">
+            <div class="col-md-12 form-group item-form">
+                <label for="nombre">Nombre</label>
+                <InputText id="txtNombreOrganismo" class="form-control" @bind-Value="oOrganismo.Nombre"></InputText>
+                <ValidationMessage For="() => oOrganismo.Nombre" />
+            </div>
+        </div>
+        <div class="row">
+            <div class="col-md-12 form-group item-form center">
+                <label for="pais">País</label>
+                <InputSelect class="form-control" @bind-Value="oOrganismo.IdPais">
+                    <option value="0">--Seleccionar--</option>
+                    @foreach (var pais in Paises)
+                    {
+                        if (oOrganismo.IdPais == pais.Id)
+                        {
+                            <option selected value="@pais.Id">@pais.Nombre</option>
+                        }
+                        else
+                        {
+                            <option value="@pais.Id">@pais.Nombre</option>
+                        }
+                    }
+                </InputSelect>
+                <ValidationMessage For="() => oOrganismo.IdPais" />
+            </div>
+        </div>
+        <div class="row">
+            <div class="col-md-12 form-group item-form">
+                <label for="mail">Email</label>
+                <InputText class="form-control" @bind-Value="oOrganismo.MailContacto"></InputText>
+                <ValidationMessage For="() => oOrganismo.MailContacto" />
+            </div>
+        </div>
+        <div class="row">
+            <div class="col-md-12 form-group item-form">
+                <label for="telefono">Teléfono</label>
+                <InputText class="form-control" @bind-Value="oOrganismo.TelefonoContacto"></InputText>
+                <ValidationMessage For="() => oOrganismo.TelefonoContacto" />
+            </div>
+        </div>
+        <div class="row">
+            <div class="col-md-12 form-group item-form">
+                <label for="tipo">Tipo</label>
+                <InputText class="form-control" @bind-Value="oOrganismo.TipoOrganismo"></InputText>
+                <ValidationMessage For="() => oOrganismo.TipoOrganismo" />
+            </div>
+        </div>
+        <div class="row">
+            <div class="col-md-8">
+            </div>
+            <div class="col-sm-6 col-md-2">
+                <button class="btn btn-primary btn-block" @onclick="@Save"> Guardar </button>
+            </div>
+            <div class="col-sm-6 col-md-2">
+                <button class="btn btn-danger btn-block" @onclick="@Cancelar"> Cancelar </button>
+            </div>
+        </div>
+    </fieldset>
+</EditForm>
+
+
+@code {
+    [Parameter]
+    public int Id { get; set; }
+    public string accion { get; set; }
+    private List<Pai> Paises = new List<Pai>();
+   
+    Organismo oOrganismo = new Organismo();
+    Pai oPais = new Pai();
+
+    Respuesta<Object> oRespuesta = new Respuesta<Object>();
+    Respuesta<Organismo> oRespuestaOrganismo = new Respuesta<Organismo>();
+    public Respuesta<List<Pai>> oRespuestaPais = new Respuesta<List<Pai>>();
+
+    public string Url = "/api/organismo";
+    public string UrlPais = "/api/pais";
+
+    private void Cancelar() =>  NavigationManager.NavigateTo("/organismo", true);
+
+    private async Task Save()
+    {
+        if (Id != 0)
+        {
+            //EDITAR ORGANISMO
+            var response = await Http.PutAsJsonAsync<Organismo>(Url, oOrganismo);
+            oRespuesta = response.Content.ReadFromJsonAsync<Respuesta<Object>>().Result;
+        }
+        else
+        {
+            //CREAR UNO NUEVO
+            var response = await Http.PostAsJsonAsync<Organismo>(Url, oOrganismo);
+            oRespuesta = response.Content.ReadFromJsonAsync<Respuesta<Object>>().Result;
+        }
+        if (oRespuesta.Exito == 1)
+        {
+            NavigationManager.NavigateTo("/organismo", true);
+        }
+        else
+        {
+            await js.InvokeVoidAsync("focusById", "txtNombreOrganismo");
+        }
+    }
+
+    protected async override Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (firstRender)
+        {
+            await js.InvokeVoidAsync("focusById", "txtNombreOrganismo");
+        }
+    }
+
+    protected override async Task OnInitializedAsync()
+    {
+        oRespuestaPais = await Http.GetFromJsonAsync<Respuesta<List<Pai>>>(UrlPais);
+        Paises = oRespuestaPais.Data;
+
+        if (Id != 0)
+        {
+            oRespuestaOrganismo = await Http.GetFromJsonAsync<Respuesta<Organismo>>(Url + "/" + Id);
+            oOrganismo = oRespuestaOrganismo.Data;
+            accion = "Editar";
+        }
+        else
+        {
+            accion = "Nuevo";
+        }
+    }
+
+}

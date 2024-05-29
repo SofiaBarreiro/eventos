@@ -1,0 +1,20 @@
+﻿@inject NavigationManager NavigationManager
+@using System.Configuration;
+
+@code{
+
+protected override void OnInitialized()
+    {
+        try {
+
+
+        NavigationManager.NavigateTo("/selectlogin", true);
+ 
+        } catch (Exception e){
+       
+        }
+    }
+
+
+}
+    

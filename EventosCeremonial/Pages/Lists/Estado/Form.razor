@@ -1,0 +1,82 @@
+﻿@page "/estado/form"
+@page "/estado/form/{Id:int}"
+@attribute [Authorize]
+
+@using Data
+@using Data.Response
+@using System.Net.Http
+@using System.Net.Http.Json
+@inject HttpClient Http
+@inject NavigationManager NavigationManager
+
+<h1>@accion estado</h1>
+
+<EditForm Model="@oEstado">
+    <fieldset>
+        <div class="row">
+            <div class="col-md-12 form-group item-form">
+                <label for="nombre">Nombre</label>
+                <InputText class="form-control" @bind-Value="oEstado.Nombre"></InputText>
+                <p class="help-block error hidden">Ingrese el nombre</p>
+            </div>
+        </div>
+        <div class="row">
+            <div class="col-md-12 form-group item-form">
+                <label for="nombre">Cultura</label>
+                <InputText class="form-control" @bind-Value="oEstado.Activo"></InputText>
+                <p class="help-block error hidden">Ingrese Sí o No</p>
+            </div>
+        </div>
+        <div class="row">
+            <div class="col-md-8">
+            </div>
+            <div class="col-sm-6 col-md-2">
+                <button class="btn btn-secondary btn-block" @onclick="Cancelar"> Cancelar </button>
+            </div>
+            <div class="col-sm-6 col-md-2">
+                <button class="btn btn-primary btn-block" @onclick="Save"> Guardar </button>
+            </div>
+        </div>
+    </fieldset>
+</EditForm>
+
+@code {
+    [Parameter]
+    public int Id { get; set; }
+    public string accion { get; set; }
+    Estado oEstado = new Estado();
+    Respuesta<Object> oRespuesta = new Respuesta<Object>();
+    Respuesta<Estado> oRespuestaEstado = new Respuesta<Estado>();
+    public string Url = "/api/estado";
+
+    private void Cancelar() => NavigationManager.NavigateTo("/estado", true);
+
+    private async Task Save()
+    {
+        if (Id != 0)
+        {
+            var response = await Http.PutAsJsonAsync<Estado>(Url, oEstado);
+            oRespuesta = response.Content.ReadFromJsonAsync<Respuesta<Object>>().Result;
+        }
+        else
+        {
+            var response = await Http.PostAsJsonAsync<Estado>(Url, oEstado);
+            oRespuesta = response.Content.ReadFromJsonAsync<Respuesta<Object>>().Result;
+        }
+        NavigationManager.NavigateTo("/estado", true);
+    }
+
+    protected override async Task OnInitializedAsync()
+    {
+        if (Id != 0)
+        {
+            oRespuestaEstado = await Http.GetFromJsonAsync<Respuesta<Estado>>(Url + "/" + Id);
+            oEstado = oRespuestaEstado.Data;
+            accion = "Editar";
+        }
+        else
+        {
+            accion = "Nuevo";
+        }
+    }
+}

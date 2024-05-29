@@ -1,0 +1,315 @@
+﻿@page "/persona/vistaimpresion/{Id:int}"
+@attribute [Authorize]
+
+
+@inject HttpClient Http
+@inject NavigationManager NavigationManager
+@inject IJSRuntime JsRuntime
+@inject AuthenticationStateProvider AuthenticationStateProvider
+@inject IHttpContextAccessor httpContextAccessor
+
+@using Microsoft.AspNetCore.Http;
+
+@using EventosCeremonial.Data;
+@using System.Diagnostics;
+@using System.Net.Http
+@using System.Net.Http.Json
+
+
+<AuthorizeView Roles="Administrador, Soporte">
+<center hidden=@Spinner>
+    <div class="spinner-border" role="status">
+        <span class="sr-only">Loading</span>
+    </div>
+</center>
+<div id="PrintDiv" hidden="OcultarTabla">
+    <div class="panel-pane pane-titulo"><div class="pane-content"><h2 class="activities-sidbar">Listado de invitados: @NombreEvento</h2></div></div>
+    <br />
+
+    <table class="table tabla-condensed table-striped dataTable no-footer  " id="ponchoTable" aria-describedby="ponchoTable_info" role="grid" hidden="@IsShowTabla">
+        <thead>
+            <tr role="row">
+                <th>Apellido y Nombre</th>
+                <th>Tipo doc.</th>
+                <th>Número</th>
+                <th>Organismo</th>
+                <th>Estado</th>
+                <th colspan="2" align="center" >Anotaciones</th>
+            </tr>
+        </thead>
+        <tbody>
+            @if (personasYaInvitadas != null)
+            {
+                @foreach (var oPersona in personasYaInvitadas)
+                {
+                    <tr role="row" class="odd">
+                        <td class="sorting_1" >
+                            <p>@oPersona.Apellido @oPersona.Nombre</p>
+                        </td>
+
+                        <td class="sorting_1">
+                            <p>@oPersona.TipoDocumento</p>
+                        </td>
+                        <td class="sorting_1" >
+                            <p>@oPersona.NumeroDocumento</p>
+                        </td>
+                        <td class="sorting_1" >
+                            <p>@TraerNombreOrganismo(oPersona.IdOrganismo)</p>
+                        </td>
+                        <td class="sorting_1">
+                            <p>@ObtenerEstado(oPersona.Id)</p>
+                        </td>
+                        <td class="sorting_1" colspan="2">
+                            <p>&ensp;&ensp;&ensp;&ensp;&ensp;&ensp;&ensp;&ensp;&ensp;&ensp;&ensp;&ensp;&ensp;&ensp;&ensp;&ensp;&ensp;&ensp;&ensp;&ensp;&ensp;&ensp;&ensp;&ensp;&ensp;&ensp;&ensp;</p>
+                        </td>
+                        
+                    </tr>
+                }
+            }
+
+        </tbody>
+    </table>
+</div>
+
+</AuthorizeView>
+
+@code {
+
+    [Parameter]
+    public int Id { get; set; }
+    public string accion { get; set; }
+    Evento oEvento = new Evento();
+    Respuesta<Evento> oRespuestaEvento = new Respuesta<Evento>();
+    public string Url = "/api/evento";
+    public string UrlOrganismo = "/api/organismo";
+
+    public string UrlInvitacion = "/api/invitacion";
+    public string UrlPersona = "/api/persona";
+    string cadenaFlyer = "";
+    public string UrlEventoParticipante = "/api/eventoparticipante";
+
+    Respuesta<List<Invitacion>> oRespuestaInvitaciones = new Respuesta<List<Invitacion>>();
+    Respuesta<EventoParticipante> oRespuestaEventoParticipante = new Respuesta<EventoParticipante>();
+
+    List<EventoParticipante> eventoParticipantes = new List<EventoParticipante>();
+    string NombreEvento;
+
+    private bool EsconderTabla { get; set; } = true;
+
+    Invitacion invitadoAConfirmar = null;
+    public string nombrePortada { get; set; }
+    public string nombreFlyer { get; set; }
+
+    public string emailPersona { get; set; }
+    public bool Spinner { get; set; } = false;
+
+    public bool OcultarTabla { get; set; } = true;
+
+
+
+    List<Invitacion> invitaciones = new List<Invitacion>();
+    List<Persona> personasYaInvitadas = new List<Persona>();
+    List<Persona> personas = new List<Persona>();
+    List<Organismo> listaOrganismos = new List<Organismo>();
+
+    private string MensajeTabla { get; set; } = "Sin datos aún";
+    private bool IsShowError { get; set; } = true;
+    private void ShowError(bool mostrar)
+    {
+        if (mostrar)
+            IsShowError = false;
+        else
+            IsShowError = true;
+    }
+    private bool IsShowTabla { get; set; } = true;
+    private void ShowTabla(bool mostrar)
+    {
+        if (mostrar)
+            IsShowTabla = false;
+        else
+            IsShowTabla = true;
+    }
+
+    private string CorreoUsuario { get; set; } = "";
+    private string estadoInscripcion { get; set; } = "";
+    bool encontroInvitado = false;
+    LoggerManger logger = new LoggerManger();
+
+    Respuesta<Organismo> oRespuestaOrganismo = new Respuesta<Organismo>();
+
+    public bool Mostrar { get; set; } = true;
+
+
+
+    public bool ShowScanBarcode { get; set; } = false;
+
+    public async Task PrintAsiento(bool firstRender)
+    {
+        try
+        {
+            if (firstRender == false)
+            {
+
+                Spinner = true;
+                OcultarTabla = false;
+                await JsRuntime.InvokeVoidAsync("printDiv");
+            }
+
+        }
+        catch (Exception ex)
+        {
+            logger.LogError("Error imprimir vista", ex);
+        }
+
+    }
+
+    protected async override Task OnAfterRenderAsync(bool firstRender)
+    {
+
+
+        await PrintAsiento(firstRender);//SI HAY INVITADOS VA A ARMAR EL CODIGO QR CON JAVASCRIPT
+       
+
+    }
+
+    protected override async Task OnInitializedAsync()
+    {
+        if (Id != 0)
+        {
+            //TRAE DATOS DEL EVENTO
+            try
+            {
+                string url = Http.BaseAddress.AbsoluteUri;
+
+                oRespuestaEvento = await Http.GetFromJsonAsync<Respuesta<Evento>>(Url + "/" + Id);
+
+                if (oRespuestaEvento.Data != null)
+                {
+                    oEvento = oRespuestaEvento.Data;
+                    NombreEvento = oEvento.Nombre;
+
+                    oRespuestaInvitaciones = await Http.GetFromJsonAsync<Respuesta<List<Invitacion>>>(UrlInvitacion + "/" + Id);
+                    //TRAE LAS INVITACIONES PARA PODER TRAER LOS NOMBRES DE LAS PERSONAS
+                    if (oRespuestaInvitaciones.Exito == 0)
+                    {
+                        ShowTabla(false);
+                        EsconderTabla = false;
+                        //SI NO HAY INVITACIONES ESCONDE LA TABLA
+
+                    }
+                    else
+                    {
+
+                        invitaciones = oRespuestaInvitaciones.Data;
+
+                        foreach (Invitacion item in invitaciones)
+                        {
+                            if (item.IdPersona != null)
+                            {
+                                var personaAux = await Http.GetFromJsonAsync<Respuesta<Persona>>(UrlPersona + "/" + item.IdPersona);
+                                if (personaAux.Exito == 1)
+                                {
+                                    Persona aux = personaAux.Data;
+                                    if (aux.IdOrganismo != null)
+                                    {
+                                        oRespuestaOrganismo = await Http.GetFromJsonAsync<Respuesta<Organismo>>(UrlOrganismo + "/" + aux.IdOrganismo);
+                                        if (!listaOrganismos.Contains(oRespuestaOrganismo.Data))
+                                        {
+                                            if(oRespuestaOrganismo.Data.Nombre == "SIN ORGANISMO")
+                                            {
+                                                oRespuestaOrganismo.Data.Nombre = "";
+
+                                            }  
+                                            listaOrganismos.Add(oRespuestaOrganismo.Data);
+
+                                        }
+                                        if (aux.TipoDocumento == null)
+                                        {
+
+                                            aux.TipoDocumento = "---";
+                                        }
+                                        if (aux.NumeroDocumento == null)
+                                        {
+
+                                            aux.NumeroDocumento = "---";
+                                        }
+                                        
+                                    }
+
+                                    personasYaInvitadas.Add(aux);
+
+                                    oRespuestaEventoParticipante = await Http.GetFromJsonAsync<Respuesta<EventoParticipante>>(UrlEventoParticipante + "/" + item.Id);
+                                    eventoParticipantes.Add(oRespuestaEventoParticipante.Data);
+
+
+                                }
+                            }
+                        }
+
+                        MostrarInvitados(personasYaInvitadas);
+
+                    }
+                }
+                else
+                {
+                    accion = "No fue posible recuperar el evento.";
+                }
+            }
+            catch (Exception e)
+            {
+
+                logger.LogError("OnInitializedAsync disp", e);
+                accion = "Error en carga";
+
+            }
+
+        }
+        else
+        {
+            accion = "No fue posible crear el evento";
+        }
+
+    }
+    private string TraerNombreOrganismo(int? IdOrganismo)
+    {
+        string retorno = "";
+
+        if (listaOrganismos != null && IdOrganismo != null)
+        {
+            var organismoPersona = listaOrganismos.Where(p => p.Id == IdOrganismo).ToList();
+            retorno = organismoPersona.ElementAt(0).Nombre;
+        }
+
+        return retorno;
+
+    }
+
+    //funcion para obtener el estado del participante, recorre las listas almacenadas en el inicio
+    private string ObtenerEstado(int Id)
+    {
+        string retorno = "";
+
+        if (invitaciones != null)
+        {
+            var invitacionPersona = invitaciones.Where(p => p.IdPersona == Id).ToList();
+            var eventoPersona = eventoParticipantes.Where(p => p.IdInvitacion == invitacionPersona.ElementAt(0).Id).ToList();
+            retorno = eventoPersona.ElementAt(0).EstadodeInscripcion;
+        }
+
+        return retorno;
+
+    }
+
+    private void MostrarInvitados(List<Persona> personasYaInvitadas)
+    {
+        if (personasYaInvitadas.Count() > 0)
+        {
+            ShowTabla(true);
+        }
+        else
+        {
+            ShowTabla(false);
+        }
+    }
+
+}

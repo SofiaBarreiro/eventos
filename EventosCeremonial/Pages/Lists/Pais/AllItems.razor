@@ -1,0 +1,171 @@
+﻿@page "/pais"
+@attribute [Authorize]
+
+@using System.Net.Http
+@using System.Net.Http.Json
+@using Data
+@using Data.Response
+
+@inject HttpClient Http
+
+<AuthorizeView Roles="Administrador">
+
+    <h1>Todas los paises</h1>
+
+    <div class="row">
+        <div class="col-12 text-left">
+            <a type="button" class="btn btn-primary" href="pais/form">Nuevo</a>
+        </div>
+    </div>
+
+    <table class="table tabla-condensed table-striped dataTable no-footer  " id="ponchoTable" aria-describedby="ponchoTable_info" role="grid">
+        <thead>
+            <tr role="row">
+
+                <th class="sorting" tabindex="0" aria-controls="ponchoTable" rowspan="1" colspan="1">
+                    Nombre
+                </th>
+                <th class="sorting" tabindex="0" aria-controls="ponchoTable" rowspan="1" colspan="1">
+                    Cultura (Sí/No)
+                </th>
+                <th></th>
+                <th></th>
+            </tr>
+        </thead>
+        <tbody>
+            @if (oRespuestaTemporal == null)
+            {
+                <tr role="row" class="odd">
+                    <td class="sorting_1" colspan="5">
+                        <p>@textoNoHayRegistros</p>
+
+                    </td>
+                </tr>
+            }
+
+            @if (oRespuestaTemporal != null)
+            {
+                @foreach (var oElement in listaPais)
+                {
+                    <tr role="row" class="odd">
+
+                        <td class="" data-title="Nombre">
+                            <p>@oElement.Nombre</p>
+                        </td>
+                        <td class="" data-title="Cultura">
+                            <p>@oElement.Cultura</p>
+                        </td>
+                        <td>
+                            <a href="/pais/form/@oElement.Id"><i class="fa fa-edit"></i></a>
+                        </td>
+
+                    </tr>
+                }
+            }
+        </tbody>
+    </table>
+    <nav aria-label="Page navigation example">
+        <ul class="pagination">
+            @for (int i = 1; i <= cantPaginas; i++)
+            {
+                var fila = i;
+                <li class="page-item"><button class="page-link" @onclick="() =>TraerPagina(fila)">@i</button></li>
+            }
+        </ul>
+    </nav>
+</AuthorizeView>
+@code {
+    public string Url = "/api/pais";
+    public Respuesta<List<Pai>> oRespuestaTemporal = new Respuesta<List<Pai>>();
+
+    public List<Pai> listaPais = new List<Pai>();
+    public int cantPaginas { get; set; }
+
+    public int porcion { get; set; } = 3;
+    public string textoNoHayRegistros { get; set; } = "Cargando...";
+
+
+    protected override async Task OnInitializedAsync()
+    {
+        //SE HACE PAGINACION DE PAISES
+        oRespuestaTemporal = await Http.GetFromJsonAsync<Respuesta<List<Pai>>>(Url);
+
+        if (oRespuestaTemporal.Data != null)
+        {
+            if (oRespuestaTemporal.Data.Count() > 0)
+            {
+                int totalFilas = oRespuestaTemporal.Data.Count();
+
+                cantPaginas = totalFilas / porcion;
+
+
+
+                if (totalFilas % porcion != 0)
+                {
+                    if (totalFilas < porcion)
+                    {
+                        listaPais = oRespuestaTemporal.Data.GetRange(0, totalFilas);
+
+                    }
+                    else
+                    {
+
+
+                        cantPaginas++;
+                        listaPais = oRespuestaTemporal.Data.GetRange(0, porcion);
+
+                    }
+
+                }
+                else
+                {
+
+                    listaPais = oRespuestaTemporal.Data.GetRange(0, porcion);
+
+
+                }
+
+            }
+        }
+        else
+        {
+            listaPais = null;
+            textoNoHayRegistros = "No se encontraron registros";
+
+        }
+
+
+    }
+    public async Task TraerPagina(int nro)
+    {
+        if (oRespuestaTemporal.Data != null)
+        {
+
+            if (nro == 1)
+            {
+                listaPais = oRespuestaTemporal.Data.GetRange(0, porcion);
+
+            }
+            else
+            {
+                int indice = (nro * porcion) - porcion;
+                if (nro == cantPaginas)
+                {
+                    int porcionF = oRespuestaTemporal.Data.Count() - indice;
+
+                    listaPais = oRespuestaTemporal.Data.GetRange(indice, porcionF);
+
+                }
+                else
+                {
+
+                    listaPais = oRespuestaTemporal.Data.GetRange(indice, porcion);
+
+                }
+            }
+        }
+
+    }
+
+
+}

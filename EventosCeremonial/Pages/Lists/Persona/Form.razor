@@ -1,0 +1,211 @@
+﻿@page "/persona/form"
+@page "/persona/form/{Id:int}"
+@*@attribute [Authorize]
+*@
+@inject HttpClient Http
+@inject NavigationManager NavigationManager
+@inject IJSRuntime js
+@inject IloggerManager logger
+
+<h1>@accion persona</h1>
+
+<EditForm Model="@oPersona">
+    <DataAnnotationsValidator />
+    <fieldset>
+        <div class="row">
+            <div class="col-md-6 form-group item-form">
+                <label for="nombre">Nombre</label>
+                <InputText id="txtNombrePersona" class="form-control" @bind-Value="oPersona.Nombre"></InputText>
+                <ValidationMessage For="() => oPersona.Nombre" />
+            </div>
+          
+            <div class="col-md-6 form-group item-form">
+                <label for="apellido">Apellido</label>
+                <InputText class="form-control" @bind-Value="oPersona.Apellido"></InputText>
+                <ValidationMessage For="() => oPersona.Apellido" />
+            </div>
+        </div>
+        <div class="row">
+            <div class="col-md-6 form-group item-form">
+                <label for="email">Email</label>
+                <InputText class="form-control" @bind-Value="oPersona.MailContacto"></InputText>
+                <ValidationMessage For="() => oPersona.MailContacto" />
+            </div>
+          
+            <div class="col-md-6 form-group item-form">
+                <label for="telefono">Teléfono</label>
+                <InputText class="form-control" @bind-Value="oPersona.TelefonoContacto"></InputText>
+                <ValidationMessage For="() => oPersona.TelefonoContacto" />
+            </div>
+        </div>
+        <div class="row">
+            <div class="col-md-6 form-group item-form">
+                <label for="dni">DNI/Documento</label>
+                <InputText class="form-control" @bind-Value="oPersona.NumeroDocumento"></InputText>
+                <ValidationMessage For="() => oPersona.NumeroDocumento" />
+            </div>
+           
+            <div class="col-md-6 form-group item-form">
+                <label for="tipo">Tipo de identificación</label>
+                <InputSelect class="form-control" @bind-Value="oPersona.TipoDocumento">
+                    <option selected value="@TiposDoc.DNI.ToString()">@TiposDoc.DNI.ToString()</option>
+                    <option value="@TiposDoc.CUIL.ToString()">@TiposDoc.CUIL.ToString()</option>
+                    <option value="@TiposDoc.PASAPORTE.ToString()">@TiposDoc.PASAPORTE.ToString()</option>
+
+                </InputSelect>
+                <ValidationMessage For="() => oPersona.TipoDocumento" />
+            </div>
+        </div>
+
+        <div class="row">
+            <div class="col-md-6 form-group item-form">
+                <label for="puesto">Puesto</label>
+                <InputText class="form-control" @bind-Value="oPersona.Puesto"></InputText>
+                <ValidationMessage For="() => oPersona.Puesto" />
+            </div>
+            @*  </div>
+                <div class="row">*@
+            <div class="col-md-6 form-group item-form">
+                <label for="organismo">Organismo</label>
+                @*<InputNumber class="form-control" @bind-Value="oPersona.IdOrganismo"></InputNumber>*@
+                <InputSelect class="form-control" @bind-Value="oPersona.IdOrganismo">
+                    <option value="0">--Seleccionar--</option>
+                    @foreach (var organismo in Organismos)
+                    {
+                        if (oPersona.IdOrganismo == organismo.Id)
+                        {
+                            <option selected value="@organismo.Id">@organismo.Nombre</option>
+                        }
+                        else
+                        {
+                            <option value="@organismo.Id">@organismo.Nombre</option>
+                        }
+                    }
+                </InputSelect>
+                <ValidationMessage For="() => oPersona.IdOrganismo" />
+            </div>
+        </div>
+        <div class="row">
+            <div class="col-md-8">
+            </div>
+            <div class="col-sm-6 col-md-2">
+                <button class="btn btn-primary btn-block" @onclick="Save"> Guardar </button>
+            </div>
+            <div class="col-sm-6 col-md-2">
+                <button class="btn btn-danger btn-block" @onclick="Cancelar"> Cancelar </button>
+            </div>
+        </div>
+    </fieldset>
+</EditForm>
+
+@code {
+    [Parameter]
+    public int Id { get; set; }
+    public string accion { get; set; }
+
+    Persona oPersona = new Persona();
+    Respuesta<Object> oRespuesta = new Respuesta<Object>();
+    Respuesta<Persona> oRespuestaPersona = new Respuesta<Persona>();
+    public List<Organismo> Organismos { get; set; } = new List<Organismo>();
+    public Respuesta<List<Organismo>> oRespuestaOrganismo = new Respuesta<List<Organismo>>();
+    public string Url = "/api/persona";
+    public string UrlOrganismo = "/api/organismo";
+
+    private void Cancelar() => NavigationManager.NavigateTo("/persona", true);
+
+    public enum TiposDoc { DNI, CUIL, PASAPORTE };
+
+    private async Task Save()
+    {
+
+        try
+        {
+            //SE HACE VALIDACION CON TIPO DE DOCUMENTO QUE NO SE EXCEDE NI TENGA MENOS DE LA CANTIDAD NECESARIA
+            if (oPersona.TipoDocumento == "CUIL" && oPersona.NumeroDocumento.Length != 11)
+            {
+
+                await js.InvokeVoidAsync("alert", "Error en tipo de documento");
+                return;
+
+
+            }
+            if (oPersona.TipoDocumento == "DNI" && oPersona.NumeroDocumento.Length != 8)
+            {
+
+                await js.InvokeVoidAsync("alert", "Error en tipo de documento");
+                return;
+
+
+            }
+
+            //SI PASO LA VALIDACIONES SE GUARDA
+
+            if (Id != 0)
+            {
+                //EDITAR PERSONA
+                var response = await Http.PutAsJsonAsync<Persona>(Url + "/EditarPersonaImport", oPersona);
+                //oRespuesta = response.Content.ReadFromJsonAsync<Respuesta<Object>>().Result;
+                NavigationManager.NavigateTo("/persona", true);
+
+            }
+            else
+            {
+                //NUEVA PERSONA
+                var response = await Http.PostAsJsonAsync<Persona>(Url, oPersona);
+                //oRespuesta = response.Content.ReadFromJsonAsync<Respuesta<Object>>().Result;
+                NavigationManager.NavigateTo("/persona", true);
+
+
+            }
+        }
+        catch (Exception e)
+        {
+
+            logger.LogError("error en form de personas", e);
+
+        }
+
+
+    }
+
+    protected async override Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (firstRender)
+        {
+            await js.InvokeVoidAsync("focusById", "txtNombrePersona");
+        }
+    }
+
+
+    protected override async Task OnInitializedAsync()
+    {
+
+        try
+        {
+
+            oRespuestaOrganismo = await Http.GetFromJsonAsync<Respuesta<List<Organismo>>>(UrlOrganismo);
+            Organismos = oRespuestaOrganismo.Data;
+
+
+            if (Id != 0)
+            {
+                oRespuestaPersona = await Http.GetFromJsonAsync<Respuesta<Persona>>(Url + "/" + Id);
+                oPersona = oRespuestaPersona.Data;
+                accion = "Editar";
+            }
+            else
+            {
+                oPersona.TipoDocumento = TiposDoc.DNI.ToString();
+                accion = "Nueva";
+            }
+
+        }
+        catch (Exception e)
+        {
+
+            logger.LogError("error en form de personas", e);
+
+        }
+
+    }
+}

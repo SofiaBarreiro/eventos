@@ -1,0 +1,108 @@
+﻿@page "/eventoParticipante"
+@attribute [Authorize]
+
+@using System.Net.Http
+@using System.Net.Http.Json
+@using Data
+@using Data.Response
+
+@inject HttpClient Http
+<AuthorizeView Roles="Soporte, Administrador">
+
+    <h1>Todos los 
+        -participantes</h1>
+
+    <div class="row">
+        <div class="col-12 text-left">
+            <a type="button" class="btn btn-primary" href="eventoparticipante/form">Nuevo</a>
+        </div>
+    </div>
+
+    <table class="table tabla-condensed table-striped dataTable no-footer  " id="ponchoTable" aria-describedby="ponchoTable_info" role="grid">
+          @if (oRespuesta.Data == null)
+        {
+            <tr role="row" class="odd">
+                <td class="sorting_1" colspan="5">
+                    <p>@textoNoHayRegistros</p>
+                </td>
+            </tr>
+        }
+        @if (oRespuesta != null && oRespuesta.Data != null)
+        {
+            <thead>
+                <tr role="row">
+                    <th class="sorting_asc" tabindex="0" aria-controls="ponchoTable" rowspan="1" colspan="1" aria-sort="ascending" aria-label="Id: Activar para ordenar la columna de manera descendente">
+                        IdEventoParticipante
+                    </th>
+                    <th class="sorting" tabindex="0" aria-controls="ponchoTable" rowspan="1" colspan="1" aria-label="Nombre: Activar para ordenar la columna de manera ascendente">
+                        IdInvitacion
+                    </th>
+                    <th class="sorting" tabindex="0" aria-controls="ponchoTable" rowspan="1" colspan="1" aria-label="Nombre: Activar para ordenar la columna de manera ascendente">
+                        Nombre
+                    </th>
+                </tr>
+            </thead>
+            <tbody>
+                @foreach (var oElement in oRespuesta.Data)
+                {
+                    <tr role="row" class="odd">
+                        <td class="sorting_1" data-title="Id">
+                            <p>@oElement.Id</p>
+                        </td>
+                        <td class="" data-title="IdInvitacion">
+                            <p>@oElement.IdInvitacion</p>
+                        </td>
+                        <td class="" data-title="Nombre">
+                            <p>@TraerNombre(@oElement.IdInvitacion)</p>
+                        </td>
+                       
+                    </tr>
+                }
+            </tbody>
+        }
+    </table>
+</AuthorizeView>
+
+@code {
+    public string Url = "/api/eventoparticipante";
+    public string UrlInvitaciones = "/api/invitacion";
+    public string UrlPersonas = "/api/persona";
+
+        public string textoNoHayRegistros { get; set; } = "Cargando...";
+
+    public Respuesta<List<EventoParticipante>> oRespuesta = new Respuesta<List<EventoParticipante>>();
+    Respuesta<Persona> oRespuestaPersona = new Respuesta<Persona>();
+    Respuesta<List<Invitacion>> oRespuestaInvitaciones = new Respuesta<List<Invitacion>>();
+    Respuesta<List<Persona>> oRespuestaPersonas = new Respuesta<List<Persona>>();
+
+    //ESTE SITIO QUEDO EN DESUSO, ES LA LISTA DE LOS INVITADOS PERO SOLO DE LOS DATOS DE LOS DE IDS DE PERSONAS Y DE EVENTOS
+    protected override async Task OnInitializedAsync()
+    {
+
+        //oRespuesta = await Http.GetFromJsonAsync<Respuesta<List<EventoParticipante>>>(Url);
+        //oRespuestaInvitaciones = await Http.GetFromJsonAsync<Respuesta<List<Invitacion>>>(UrlInvitaciones);
+        //oRespuestaPersonas = await Http.GetFromJsonAsync<Respuesta<List<Persona>>>(UrlPersonas);
+       
+            textoNoHayRegistros = "No se encontraron registros";
+
+    }
+    //EN DESUSO
+    private string TraerNombre(int IdInvitacion)
+    {
+        var datosPersona = "";
+
+        //var invitacionPersona = oRespuestaInvitaciones.Data.Where(p => p.Id == IdInvitacion).ToList().ElementAt(0);
+
+        //var response = oRespuestaPersonas.Data.Where(p => p.Id == invitacionPersona.IdPersona).ToList().ElementAt(0);
+
+        //datosPersona = response.Nombre;
+
+        return datosPersona;
+
+
+    }
+    
+ 
+
+
+}

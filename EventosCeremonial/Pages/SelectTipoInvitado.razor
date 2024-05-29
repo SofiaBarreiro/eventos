@@ -1,0 +1,128 @@
+﻿@page "/selecttipoinvitado/{Id:int}"
+@using EventosCeremonial;
+
+@inject HttpClient Http
+@inject NavigationManager NavigationManager
+@inject IJSRuntime js
+
+
+
+@using Data
+@using Data.Response
+@using System.Net.Http
+@using System.Net.Http.Json
+
+
+<br />
+<br />
+<br />
+@*    <Authorized>
+*@       
+
+<EventosCeremonial.Components.ModalDNI @ref="Modal"></EventosCeremonial.Components.ModalDNI>
+<button @onclick="() => Modal.Open(Id)" id="botonModalDNI" hidden="hidden">Modal</button>
+
+<EventosCeremonial.Components.ModalInscribirse @ref="ModalInscribirse"></EventosCeremonial.Components.ModalInscribirse>
+<button @onclick="() => ModalInscribirse.Open(Id, true, false)" id="botonModalInscribir" hidden="hidden">Confirmar inscripcion</button>
+
+
+<EventosCeremonial.Components.ModalEscanear @ref="ModalEscanear"></EventosCeremonial.Components.ModalEscanear>
+<button @onclick="() => ModalEscanear.Open()" id="botonModalEscanear" hidden="hidden">Escanear QR</button>
+
+<div class="container">
+            <center>
+                <div class="alert alert-secondary col-md-6" style="opacity: 0.8;">
+                    <main role="main">
+                        <center>
+                            <h2>Control de acceso</h2>
+                            <partial name="_StatusMessage" for="StatusMessage" />
+
+                            <div class="row">
+                                <div class="col-md-12">
+
+                                    <div class="col-md-6" hidden=@divSelect>
+                                        Seleccione el tipo de identificación
+                                        <br />
+                                        <br />
+
+                                        <div class="col-md-12">
+                                            <button type="button" @onclick="mostrarModalDNI" class="btn btn-success col-md-12 btn-lg">DNI</button>
+                                        </div>
+                                        <br />
+                                        <div class="col-md-12">
+                                            <button type="button" @onclick="EscanearCodigo" class="btn btn-success col-md-12 btn-lg ">Entrada</button>
+                                        </div>
+                                        <br />
+                                        <div class="col-md-12">
+                                            <button type="button" @onclick="mostrarModalInscribirse" class="btn btn-success col-md-12 btn-lg ">Nuevos invitados</button>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+
+                        </center>
+
+                    </main>
+                </div>
+            </center>
+
+            <br />
+            <br />
+
+        </div>
+@*    </Authorized>
+*@
+@code {
+
+    [Parameter]
+    public int Id { get; set; }
+
+    private EventosCeremonial.Components.ModalDNI  Modal { get; set; }
+    private EventosCeremonial.Components.ModalInscribirse ModalInscribirse { get; set; }
+
+    private EventosCeremonial.Components.ModalEscanear ModalEscanear { get; set; }
+
+
+    public bool divSelect { get; set; } = false;
+    public bool divDNI { get; set; } = true;
+    public string dni { get; set; } = "";
+    public string puntoDeAcceso { get; set; } = "";
+
+
+    protected override async Task OnInitializedAsync()
+    {
+        LoggerManger logger = new LoggerManger();
+
+        try
+        {
+
+        }
+        catch (Exception e)
+        {
+            logger.LogError("error en selectTipoInvitado", e);
+        }
+
+    }
+    private async Task mostrarModalDNI()
+    {
+       
+    
+        await js.InvokeVoidAsync("AbrirModalDNI");
+
+    }
+    private async Task mostrarModalInscribirse()
+    {
+
+        await js.InvokeVoidAsync("AbrirModalInscribir");
+
+    }
+
+    private async Task EscanearCodigo()
+    {
+
+    await js.InvokeVoidAsync("AbrirModalEscanear");
+
+    }
+
+
+}

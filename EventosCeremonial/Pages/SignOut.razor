@@ -1,0 +1,91 @@
+﻿@page "/SignOut"
+
+@inject NavigationManager NavigationManager
+@inject AuthenticationStateProvider AuthenticationStateProvider
+@using System.Security.Claims;
+@using Microsoft.AspNetCore.Authentication
+@using Microsoft.AspNetCore.Http
+@using Microsoft.AspNetCore.Identity
+@using Microsoft.AspNetCore.Authentication.WsFederation;
+@using Microsoft.AspNetCore.Authentication.Cookies;
+
+
+@inject IHttpContextAccessor httpContextAccessor
+
+<br />
+<br />
+<br />
+<center>
+    <div class="form-group">
+        <div class="form-group">
+            Saliendo del sitio...
+        </div>
+    </div>
+</center>
+
+
+
+@code {
+
+
+
+    protected override async Task OnInitializedAsync()
+    {
+        LoggerManger logger = new LoggerManger();
+        string scheme = "";
+        try
+        {
+            var authState = await AuthenticationStateProvider.GetAuthenticationStateAsync();
+            ClaimsPrincipal user = authState.User;
+            if (user.Identities.Any(x => x.IsAuthenticated))
+            {
+                var email = user.Identity.Name.ToLower();
+
+                if (user.Identity.Name != null && !user.Identity.Name.Contains("@"))
+                {
+
+                    //is AD
+                    scheme = WsFederationDefaults.AuthenticationScheme;
+
+
+                }
+                else
+                {
+
+                    scheme = IdentityConstants.ExternalScheme;
+
+
+                }
+                var properties = new AuthenticationProperties { RedirectUri = "/" };
+
+                await httpContextAccessor.HttpContext.Response.HttpContext.SignOutAsync(IdentityConstants.ExternalScheme);
+
+                var authenticationSchemes = new[] { CookieAuthenticationDefaults.AuthenticationScheme, scheme };
+
+                foreach (var authenticationScheme in authenticationSchemes)
+                {
+                    await httpContextAccessor.HttpContext.SignOutAsync(authenticationScheme, properties);
+                }
+
+
+
+            }
+            else
+            {
+
+                NavigationManager.NavigateTo("/", true);
+
+
+            }
+
+        }
+        catch (Exception e)
+        {
+            logger.LogError("error en signout", e);
+        }
+
+    }
+
+
+
+    }

@@ -1,0 +1,89 @@
+﻿@page "/eventosenejecucion"
+@attribute [Authorize]
+
+@inject HttpClient Http
+@using System.IO;
+@using System.Reflection;
+@using EventosCeremonial.Helpers;
+@inject IFileUpload fileUpload
+
+
+<AuthorizeView  Roles="Administrador, Soporte" >
+
+    <br />
+    <br />
+    <center class="panel-pane pane-titulo"><div class="pane-content"><h2 class="activities-sidbar">Eventos en ejecución</h2></div></center>
+    <br />
+    <br />
+
+    <table class="table tabla-condensed table-striped dataTable no-footer  " id="ponchoTable" aria-describedby="ponchoTable_info" role="grid">
+        <thead>
+            <tr role="row">
+                <th class="sorting" tabindex="0" aria-controls="ponchoTable" rowspan="1" colspan="1" aria-label="">
+                    Nombre
+                </th>
+                <th class="sorting col-3" tabindex="0" aria-controls="ponchoTable" rowspan="1" colspan="1" aria-label="">
+                    Inicio
+                </th>
+                <th></th>
+            </tr>
+        </thead>
+        <tbody>
+            @if (oRespuesta.Data == null && oRespuesta.Exito == 0)
+            {
+                <tr role="row" class="odd">
+                    <td class="sorting_1" colspan="8">
+                    <p>@textoNoHayRegistros</p>
+                    </td>
+                </tr>
+            }
+            @if (oRespuesta != null && oRespuesta.Data != null)
+            {
+                @foreach (var oElement in oRespuesta.Data)
+                {
+                    <tr role="row" class="odd">
+                        <td class="" data-title="Nombre">
+                            <a href="/evento/disp/@oElement.Id">@oElement.Nombre</a>
+                        </td>
+                        <td class="" data-title="Inicio">
+                            <p>@oElement.FechaHoraInicio.Value.ToString("dd/MM/yy HH:MM ") hs</p>
+                        </td>
+                        <td>
+                            <a href="/selecttipoinvitado/@oElement.Id"><i class="fa fa-edit" style="font-size: large;"></i></a>
+                        </td>
+                    </tr>
+                }
+            }
+        </tbody>
+    </table>
+
+    </AuthorizeView>
+
+@code {
+    public string Url = "/api/evento";
+    public Respuesta<List<Evento>> oRespuesta = new Respuesta<List<Evento>>();
+    Respuesta<Evento> oRespuestaEvento = new Respuesta<Evento>();
+    public string textoNoHayRegistros { get; set; } = "Cargando...";
+
+    protected override async Task OnInitializedAsync() {
+        oRespuesta = await Http.GetFromJsonAsync<Respuesta<List<Evento>>>(Url+ "/TraerSoloActivos");
+        //ACA HAY QUE CORREGIR EL CODIGO PARA QUE TRAIGA SOLO LOS EVENTOS QUE SE REALIZAN ESE DIA YA QUE ES EL MODAL DE ACCESO AL EVENTO
+        if (oRespuesta.Data != null)
+        {
+
+            if (oRespuesta.Data.Count() == 0)
+            {
+                textoNoHayRegistros = "No se encontraron registros";
+                oRespuesta.Data = null;
+            }
+        }
+        else
+        {
+            
+              textoNoHayRegistros = "No se encontraron registros";
+                oRespuesta.Data = null;
+
+        }
+
+    }
+}

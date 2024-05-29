@@ -1,0 +1,256 @@
+﻿@page "/listadoparticipantes/{Id:int}"
+@attribute [Authorize]
+
+@inject HttpClient Http
+@inject NavigationManager uriHelper
+@inject IJSRuntime JsRuntime
+
+
+@using System.Threading;
+@using System.IO;
+@using System.Text.RegularExpressions;
+@using Microsoft.AspNetCore.Http;
+@using System.Text
+@using System.Diagnostics;
+@using Microsoft.AspNetCore.Components;
+@using Microsoft.AspNetCore.Components.Web;
+@using BlazorInputFile
+@using MimeKit.Text;
+@using iTextSharp.text.pdf;
+@using iTextSharp.text;
+@using MimeKit;
+@using System.Net.Mime;
+
+
+<AuthorizeView Roles="Administrador, Participante">
+
+
+    <h4 style="text-align: center;">Listado de invitados: @NombreEvento</h4>
+
+    <div class="row w-100">
+        <div class="col-sm-3  text-left">
+            <label for="descargarBoton" class="btn btn-primary text-white btn-sm  w-100 rounded-0">Descargar listado</label>
+            <form action="api/excel/EventoFinalizado/@Id" actionname="GenerarExcelEventoFinalizado" style="display:none">
+                <button id="descargarBoton"></button>
+            </form>
+        </div>
+        <div class="col-sm-2  text-left">
+            <button class="btn btn-danger  btn-sm btn-block  w-100 rounded-0" style="font-family:sans-serif !important; font-size: 14px !important;" type="button" @onclick="ActualizarLista">Actualizar</button>
+        </div>
+    </div>
+    <table class="table tabla-condensed table-striped dataTable no-footer  " id="ponchoTable" aria-describedby="ponchoTable_info" role="grid">
+        <thead>
+            <tr role="row">
+                <th>Nombre</th>
+                <th>Apellido</th>
+                <th>eMail</th>
+                <th>Organismo</th>
+                <th>Estado</th>
+                <th>Asistió</th>
+
+            </tr>
+        </thead>
+        <tbody>
+
+            @foreach (var oPersona in personasYaInvitadas)
+            {
+                <tr role="row" class="table-success">
+                    <td class="sorting_1" data-title="Nombre">
+                        <p>@oPersona.Nombre</p>
+                    </td>
+                    <td class="sorting_1" data-title="Apellido">
+                        <p>@oPersona.Apellido</p>
+                    </td>
+                    <td class="sorting_1" data-title="">
+                        <p>@oPersona.MailContacto</p>
+                    </td>
+
+                    <td class="sorting_1" data-title="IdOrganismo">
+                        <p>@oPersona.IdOrganismo</p>
+                    </td>
+                    <td class="sorting_1" data-title="Estado">
+                        <p>@ObtenerEstado(oPersona.Id)</p>
+                    </td>
+
+
+                    <td class="sorting_1" style="text-align: center;" data-title="Confirmacion">
+
+                        @{
+                            if (EsVirtualOStreaming == false)
+                            {
+                                <p>-</p>
+                            }
+                            else
+                            {
+                                var estado = ObtenerEstado(oPersona.Id);
+                                if (estado != "Pendiente" && estado != "No aceptado")
+                                {
+                                    if (estado == "Asistió")
+                                    {
+                                        <input type="checkbox" checked @onchange="@(async (e) =>await CambiarEstado(oPersona, e.Value))" />
+                                    }
+                                    else
+                                    {
+                                        <input type="checkbox" @onchange="@(async (e) =>await CambiarEstado(oPersona, e.Value))" />
+                                    }
+                                }
+                                else
+                                {
+                                    <p>-</p>
+
+
+                                }
+
+                            }
+
+
+                        }
+
+
+
+                    </td>
+                </tr>
+            }
+        </tbody>
+
+    </table>
+    <br />
+    <br />
+    <br />
+    <br />
+    <br />
+    <br />
+    <br />
+    <br />
+    <br />
+    <br />
+    <br />
+
+</AuthorizeView>
+
+@code {
+    [Parameter]
+    public int Id { get; set; }
+    public string Url = "api/excel/UpLoadExcel";
+    public string UrlPersona = "/api/persona"; public string urlOrganismo = "/api/organismo";
+    public string UrlInvitacion = "/api/invitacion";
+    public string UrlCorreo = "/api/correo";
+    public string UrlEvento = "/api/evento";
+    public string UrlEventoParticipante = "/api/eventoparticipante";
+    List<Persona> personas = new List<Persona>();
+    List<Persona> cargaErronea = new List<Persona>();
+    List<Persona> accesoDenegado = new List<Persona>();
+    List<Organismo> organismos = new List<Organismo>();
+    List<Invitacion> invitaciones = new List<Invitacion>();
+    List<EventoParticipante> eventoParticipantes = new List<EventoParticipante>();
+    List<Persona> personasYaInvitadas = new List<Persona>();
+    Respuesta<Object> oRespuesta = new Respuesta<Object>();
+    Respuesta<Organismo> oRespuestaOrganismos = new Respuesta<Organismo>();
+    Respuesta<Evento> oRespuestaEvento = new Respuesta<Evento>();
+    Respuesta<List<Invitacion>> oRespuestaInvitaciones = new Respuesta<List<Invitacion>>(); private string Message { get; set; } = "";
+    Respuesta<EventoParticipante> oRespuestaEventoParticipante = new Respuesta<EventoParticipante>();
+    IFileListEntry file;
+    private string MensajeTablaImport { get; set; } = "Sin datos aún";
+    string fileContent;
+    const string DefaultStatus = ".Haga click o arrastre el archivo hasta el botón";
+    string status = DefaultStatus;
+    string NombreEvento;
+
+    private bool EsVirtualOStreaming { get; set; } = false;
+
+
+    List<Persona> listaAsistio = new List<Persona>();
+
+    private async Task ActualizarLista()
+    {
+
+        uriHelper.NavigateTo(uriHelper.Uri, forceLoad: true);
+
+
+    }
+
+    private async Task CambiarEstado(Persona idPersonaInvitada, object checkedValue)
+    {
+        if ((bool)checkedValue)
+        {
+            await PasarAsistencia(idPersonaInvitada, "/AsistioInvitadoVirtual");
+
+        }
+        else
+        {
+            
+            await PasarAsistencia(idPersonaInvitada, "/NoAsistioInvitado");
+
+        }
+
+        return;
+    }
+    private async Task PasarAsistencia(Persona idPersonaInvitada, string metodo)
+    {
+
+        var invitacionPersona = invitaciones.Where(p => p.IdPersona == idPersonaInvitada.Id).ToList();
+        Invitacion idInvitado = invitacionPersona.ElementAt(0);
+        await Http.PutAsJsonAsync<Invitacion>(UrlEventoParticipante + metodo, idInvitado);
+
+    }
+    private string ObtenerEstado(int idPersona)
+    {
+        string retorno = "";
+
+        if (invitaciones != null)
+        {
+            var invitacionPersona = invitaciones.Where(p => p.IdPersona == idPersona).ToList();
+            var eventoPersona = eventoParticipantes.Where(p => p.IdInvitacion == invitacionPersona.ElementAt(0).Id).ToList();
+            retorno = eventoPersona.ElementAt(0).EstadodeInscripcion;
+        }
+
+        return retorno;
+
+    }
+
+    protected override async Task OnInitializedAsync()
+    {
+        if (Id != 0)
+        {
+
+            var oRespuestaEvento = await Http.GetFromJsonAsync<Respuesta<Evento>>(UrlPersona + "/TraerEvento/" + Id);
+            NombreEvento = oRespuestaEvento.Data.Nombre;
+            if (oRespuestaEvento.Data.Formato == "Virtual" || oRespuestaEvento.Data.Formato == "Streaming")
+            {
+                EsVirtualOStreaming = true;
+            }
+
+            oRespuestaInvitaciones = await Http.GetFromJsonAsync<Respuesta<List<Invitacion>>>(UrlInvitacion + "/" + Id);
+            if (oRespuestaInvitaciones.Exito != 0)
+                invitaciones = oRespuestaInvitaciones.Data;
+            foreach (Invitacion item in invitaciones)
+            {
+                if (item.IdPersona != null)
+                {
+                    oRespuestaEventoParticipante = await Http.GetFromJsonAsync<Respuesta<EventoParticipante>>(UrlEventoParticipante + "/" + item.Id);
+                    var personaAux = await Http.GetFromJsonAsync<Respuesta<Persona>>(UrlPersona + "/" + item.IdPersona);
+
+                    if (personaAux.Exito == 1)
+                    {
+                        Persona aux = personaAux.Data;
+                        personasYaInvitadas.Add(aux);
+                        eventoParticipantes.Add(oRespuestaEventoParticipante.Data);
+
+                        if (oRespuestaEventoParticipante.Data.EstadodeInscripcion == "No aceptado")
+                        {
+                            accesoDenegado.Add(aux);
+                        }
+
+
+                    }
+                }
+
+            }
+            
+        }
+    }
+
+
+
+
+   }

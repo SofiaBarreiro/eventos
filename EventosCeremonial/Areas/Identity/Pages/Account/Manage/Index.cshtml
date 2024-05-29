@@ -1,0 +1,66 @@
+﻿@page
+@model IndexModel
+@{
+    ViewData["ActivePage"] = ManageNavPages.Index;
+}
+
+<h4>@ViewData["Title"]</h4>
+<partial name="_StatusMessage" model="Model.StatusMessage" />
+<div class="row">
+    <div class="col-md-6">
+            <div class="col-xl-12" style="margin-top:40px;">
+        @foreach (var modeleState in Model.ModelState.Values)
+         {
+            foreach (var error in modeleState.Errors)
+             {
+               <p class="text-danger"> @error.ErrorMessage</p>
+
+             }
+          }
+     </div>
+        @*<form id="profile-form" method="post">
+            <div class="form-group">
+                <label asp-for="Username">Correo electrónico</label>
+                <input asp-for="Username" class="form-control" disabled  id="emailInput"/>
+            </div>
+           
+        </form>*@
+    </div>
+</div>
+
+@section Scripts {
+    <partial name="_ValidationScriptsPartial" />
+    <script type="text/javascript">
+
+      document.addEventListener("DOMContentLoaded", function () {
+
+
+        var inputEmail = document.getElementById('emailInput');
+
+    //    buttonN.addEventListener('click', function () {
+
+    //                    var buttonDiv = document.getElementById('DivIngreso');
+    //                    buttonDiv.hidden= false;
+
+
+    //                    var buttonDiv1 = document.getElementById('DivIngresoExtranjero');
+    //                    buttonDiv1.hidden= true;
+
+    //                     var buttonDiv2 = document.getElementById('DivIngresoNacional');
+    //                    buttonDiv2.hidden= false;
+    //     });
+    //       var buttonE = document.getElementById('botonExtranjero');
+    //    buttonE.addEventListener('click', function () {
+    //          var buttonDiv = document.getElementById('DivIngreso');
+    //                    buttonDiv.hidden= false;
+
+
+    //                    var buttonDiv1 = document.getElementById('DivIngresoExtranjero');
+    //                    buttonDiv1.hidden= false;
+
+    //                     var buttonDiv2 = document.getElementById('DivIngresoNacional');
+    //                    buttonDiv2.hidden= true;
+    //     });
+    });
+    </script>
+}

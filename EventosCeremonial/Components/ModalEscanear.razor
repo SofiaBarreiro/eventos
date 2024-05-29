@@ -1,0 +1,85 @@
+﻿@inject HttpClient Http
+@inject IJSRuntime js
+@inject NavigationManager NavigationManager
+@using System.Threading;
+
+
+<div class="modal @ModalClass" tabindex="-1" role="dialog" style="display:@ModalDisplay">
+    <div class="modal-dialog" role="document">
+        <div class="modal-content"  style="width: 100%;margin-right: 0px;">
+            <div class="modal-header">
+                <h5 class="modal-title">Escanear invitación</h5>
+            </div>
+            <div class="modal-body" style="padding-right: 30px;">
+                <div class="row">
+                    <div class="col-md-12 form-group item-form">
+                        <div class="row" id="Modalscanner">
+                            <div class="col">
+                                <div  id="reader"></div>
+                            </div>
+                            <div class="col">
+                                <div id="result" ></div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+            </div>
+            <div class="modal-footer">
+                  <div class="alert alert-success col col-md-12" id="textoResult"></div>
+                <button type="button" class="btn btn-secondary" data-dismiss="modal" @onclick="() => Close()">Cancelar</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+
+
+@if (ShowBackdrop)
+{
+    <div class="modal-backdrop fade show"></div>
+}
+
+@code {
+
+
+    public Guid Guid = Guid.NewGuid();
+    public string ModalDisplay = "none;";
+    public string ModalClass = "";
+    public bool ShowBackdrop = false;
+    LoggerManger logger = new LoggerManger();
+
+
+
+    public async Task Open()
+    {
+    
+        try
+        {
+            ModalDisplay = "block";
+            ModalClass = "Show";
+            ShowBackdrop = true;
+            StateHasChanged();
+        }
+        catch (Exception e)
+        {
+
+            logger.LogError("Error en abrir formulario", e);
+
+        }
+
+        string retorno =  await js.InvokeAsync<string>("initScanner");
+    }
+
+
+    public void Close()
+    {
+        ModalDisplay = "none";
+        ModalClass = "";
+        ShowBackdrop = false;
+        StateHasChanged();
+        FuncionesBasicas.reloadPage(NavigationManager);
+
+    }
+
+}

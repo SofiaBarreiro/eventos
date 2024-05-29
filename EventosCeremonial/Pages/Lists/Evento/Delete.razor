@@ -1,0 +1,94 @@
+﻿@page "/evento/delete/{Id:int}"
+@attribute [Authorize]
+
+@using Data
+@using Data.Response
+@using System.Net.Http
+@using System.Net.Http.Json
+@inject HttpClient Http
+@inject NavigationManager NavigationManager
+@using EventosCeremonial.Helpers;
+@inject IFileUpload fileUpload
+
+
+<AuthorizeView Roles="Administrador, Soporte">
+
+    <h3>Eliminar evento</h3>
+
+    <p>¿Deseas eliminar el evento: <b>@Nombre</b>?</p>
+
+    <div class="row">
+        <div class="col-sm-12">
+            <button href="" class="btn btn-secondary" @onclick="Cancelar">No</button>
+            <button href="" class="btn btn-warning" @onclick="Eliminar">Sí</button>
+        </div>
+    </div>
+
+    @if (_isVisible)
+    {
+        <div id="error" class="row">
+            <div class="col-md-12">
+                <div class="alert alert-danger">
+                    <p>Error: @Error</p>
+                    <p>Contacte a su administrador.</p>
+                </div>
+            </div>
+        </div>
+    }
+</AuthorizeView>
+@code {
+    [Parameter]
+    public int Id { get; set; }
+    public string Nombre { get; set; }
+    public string Error { get; set; }
+    private bool _isVisible = false;
+    Evento oEvento = new Evento();
+    Respuesta<Object> oRespuesta = new Respuesta<Object>();
+    Respuesta<Evento> oRespuestaEvento = new Respuesta<Evento>();
+    Respuesta<Archivo> oRespuestaArchivo = new Respuesta<Archivo>();
+    public string Url = "/api/evento";
+    public string UrlArchivos = "/api/archivos";
+
+    protected override async Task OnInitializedAsync()
+    {
+        if (Id != 0)
+        {
+            //TRAE LOS DATOS DEL EVENTO Y LOS ARCHIVOS EN BASE DE DATOS
+            oRespuestaEvento = await Http.GetFromJsonAsync<Respuesta<Evento>>(Url + "/" + Id);
+            oEvento = oRespuestaEvento.Data;
+            oRespuestaArchivo = await Http.GetFromJsonAsync<Respuesta<Archivo>>(UrlArchivos + "/" + Id);
+
+
+            Nombre = oEvento.Nombre;
+        }
+    }
+
+    private void Cancelar() => NavigationManager.NavigateTo("/evento", true);
+
+    private async Task Eliminar()
+    {
+        //VA A BORRAR LOS DATOS DEL EVENTO EN LA DB
+        var response = await Http.DeleteAsync(Url + "/" + Id);//también deberia borrar archivos
+        oRespuesta = response.Content.ReadFromJsonAsync<Respuesta<Object>>().Result;
+
+
+        if (oRespuesta.Exito != 0)
+        {
+            //SI LOS BORRO VA A BORRAR TAMBIEN LOS ARCHIVOS QUE SE GUARDARON EN LA BASE DE DATOS
+            int datoId = Id;
+            string rutaPrograma = oEvento.RutaPrograma;
+            if (oRespuestaArchivo.Exito != 0)
+            {
+                await fileUpload.borrarArchivosEnTemporales(oRespuestaArchivo.Data.NombreFlyer, "flyer");
+                await fileUpload.borrarArchivosEnTemporales(oRespuestaArchivo.Data.NombrePortada, "portada");
+                await fileUpload.borrarArchivosEnTemporales(rutaPrograma, "programa");
+            }
+            NavigationManager.NavigateTo("/evento", true);
+        }
+        else
+        {
+
+            _isVisible = !_isVisible;
+        }
+    }
+}

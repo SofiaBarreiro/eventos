@@ -1,0 +1,1259 @@
+﻿@page "/persona/imports/{Id:int}"
+@attribute [Authorize]
+
+@inject HttpClient Http
+@inject NavigationManager uriHelper
+@inject IJSRuntime JsRuntime
+@inject IFileUpload fileUpload
+
+
+
+@using System.Threading;
+@using System.IO;
+@using System.Text.RegularExpressions;
+@using Microsoft.AspNetCore.Http;
+@using System.Text;
+@using System.Diagnostics;
+@using Microsoft.AspNetCore.Components;
+@using Microsoft.AspNetCore.Components.Web;
+@using BlazorInputFile
+@using MimeKit.Text;
+@using iTextSharp.text.pdf;
+@using iTextSharp.text;
+@using MimeKit;
+@using System.Net.Mime;
+
+<AuthorizeView Roles="Administrador, Soporte">
+    <br />
+    <br />
+    <div class="panel-pane pane-titulo"><div class="pane-content"><h2 class="activities-sidbar">Listado de invitados: @NombreEvento</h2></div></div>
+    <br />
+    <br />
+    <EventosCeremonial.Components.ModalEnviarInscripcion @ref="modalEnviarInscripcion"></EventosCeremonial.Components.ModalEnviarInscripcion>
+<button @onclick="() => modalEnviarInscripcion.Open(oRespuestaEvento.Data.Id)" id="botonModalEnviarInscripcion" hidden="hidden">Confirmar inscripcion</button>
+
+    <div class="row w-100">
+        <div class="col-sm-2  text-left" hidden="@esconderEnviarEM">
+            
+            <button id="enviarCorreos" disabled="@botonEnviarD"  data-bs-placement="top"  data-bs-toggle="popover" title="Envía la invitación sólo a los invitados que fueron cargados en el último excel y aparecen SIN estado Preinscripto " class="btn btn-danger btn-sm btn-block w-100 rounded-0" style="background-color:#dc3545;color:#ffffff; font-family:sans-serif !important; font-size:14px !important;" type="button" @onclick="EnviarCorreos">Enviar correos a Nuevos</button>
+        </div>
+        
+        <div class="col-sm-2  text-left" hidden="@esconderReenviar">
+            <button id="reenviarCorreos" disabled="@botonReenviarD"  data-bs-placement="top"  data-bs-toggle="popover" title="Envía la invitación a todos los invitados que se encuentran preinscriptos" class="btn btn-warning  btn-sm btn-block  w-100 rounded-0" style="font-family:sans-serif !important; font-size: 14px !important;" type="button" @onclick="ReenviarCorreos">Enviar correos</button>
+        </div>
+        <div class="col-sm-2  text-left" hidden="@FuncionesBasicas.hayPreinscriptos(encontroPreinscripto)">
+            <button id="ConfirmarInvitados" data-bs-toggle="popover"  data-bs-placement="top"  title="Envía la confirmación de vacante a los invitados que están en estado Pre inscripto" disabled="@botonConfirmarD" class="btn btn-danger  btn-sm btn-block  w-100 rounded-0" style="font-family:sans-serif !important; font-size: 14px !important;" type="button" @onclick="ConfirmarInvitados">Confirmar invitados</button>
+        </div>
+        
+        <div class="col-sm-2  text-left" hidden="@FuncionesBasicas.hayConfirmados(encontroConfirmados)">
+            <button id="ReenviarInvitacionPresencial" data-bs-toggle="popover"  data-bs-placement="top"  title="Le recuerda a los invitados confirmados la información con fecha y hora del evento" disabled="@botonReenviarInvitacionPresencialD" class="btn btn-danger  btn-sm btn-block  w-100 rounded-0" style="font-family:sans-serif !important; font-size: 14px !important;" type="button" @onclick="EnviarRecordatorio">Enviar recordatorio</button>
+        </div>
+        <div class="col-sm-3  text-left">
+            <label for="descargarBoton" class="btn btn-primary text-white btn-sm  w-100 rounded-0">Descargar excel</label>
+            <form action="api/excel/@Id" actionname="GenerarExcel" style="display:none">
+                <button disabled="@descargarD"  data-bs-toggle="popover"  data-bs-placement="top"  title="Descarga el excel con la planilla para cargar invitados, ANTES DE IMPORTARLA SE DEBE CAMBIAR EL FORMATO A CSV"  id="descargarBoton"></button>
+            </form>
+        </div>
+         <div class="col-sm-2  text-left" >
+            
+            <button id="EnviarFormularioRegistro" disabled="@botonFormularioRegistro"  data-bs-placement="top"  class="btn btn-secondary  btn-sm btn-block  w-100 rounded-0"  data-bs-toggle="popover" title="Envía invitaciones a casillas grupales, NO REGISTRA A INVITADOS. El invitado debe ingresar sus datos a través del formulario que le llega por correo para estar inscripto." style="font-family:sans-serif !important; font-size: 14px !important;" type="button" @onclick="EnviarFormularioRegistro">Enviar a casilla grupal</button>
+        </div>
+
+        <div class="drag-drop-zone col-sm-4  text-left"
+    <BlazorInputFile.InputFile OnChange="SubirArchivoAImport" class="btn btn-info text-white btn-sm  w-100 rounded-0" />
+</div>
+
+    </div>
+    <table class="table tabla-condensed table-striped dataTable no-footer" id="ponchoTable" aria-describedby="ponchoTable_info" role="grid">
+        <thead >
+
+
+            <tr role="row">
+                <th colspan="12" style="text-align: center;">@MensajeTablaImport</th>
+            </tr>
+
+            <tr role="row">
+                <th colspan="12" style="text-align: center;" id="barraProgreso" hidden>
+                    <div class="progress">
+                        <div class="progress-bar" mrole="progressbar" style="width:0%;" aria-valuenow="0" aria-valuemin="0" aria-valuemax="100">0%</div>
+                    </div>
+                </th>
+            </tr>
+
+            <tr role="row">
+                <td colspan="1" style="text-align: center;">Cantidad de invitados:</td>
+                <td colspan="1" style="text-align: center;">@CantInvitados</td>
+                <td colspan="1" style="text-align: center;">Cupo disponible:</td>
+                <td colspan="1" style="text-align: center;">@CupoDisponible</td>
+                <td colspan="1" style="text-align: center;">Invitados confirmados:</td>
+                <td colspan="1" style="text-align: center;">@InvitadosConfirmados</td>
+            </tr>
+
+        </thead>
+        
+  
+        <thead hidden="@IsShowTabla">
+            <tr role="row">
+                <th>Nombre</th>
+                <th>Apellido</th>
+                <th>Email</th>
+                <th>Organismo</th>
+                <th>Estado</th>
+                <th>No confirmar</th>
+
+            </tr>
+        </thead>
+        <tbody hidden="@IsShowTabla">
+            @foreach (var oPersona in personas)
+            {
+                <tr role="row" class="odd">
+                    <td class="sorting_1" data-title="Id">
+                        <p>@oPersona.Nombre</p>
+                    </td>
+                    <td class="sorting_1" data-title="Id">
+                        <p>@oPersona.Apellido</p>
+                    </td>
+                    <td class="sorting_1" data-title="Id">
+                        <p>@oPersona.MailContacto</p>
+                    </td>
+
+                    <td class="sorting_1" data-title="Id">
+                        <p>@oPersona.IdOrganismo</p>
+                    </td>
+
+                    <td class="sorting_1" data-title="Boton">
+                        <p>-</p>
+                    </td>
+                    <td class="sorting_1" data-title="Boton">
+                        <p></p>
+                    </td>
+                </tr>
+            }
+            @foreach (var oPersona in personasYaInvitadas)
+            {
+                <tr role="row" class="table-success">
+                    <td class="sorting_1" data-title="Nombre">
+                        <p>@oPersona.Nombre</p>
+                    </td>
+                    <td class="sorting_1" data-title="Apellido">
+                        <p>@oPersona.Apellido</p>
+                    </td>
+                    <td class="sorting_1" data-title="MailContacto">
+                        <p>@oPersona.MailContacto</p>
+                    </td>
+
+                    <td class="sorting_1" data-title="IdOrganismo">
+                        <p>@oPersona.IdOrganismo</p>
+                    </td>
+                    <td class="sorting_1" data-title="Estado">
+                        <p>@ObtenerEstado(oPersona.Id)</p>
+                    </td>
+                    <td class="sorting_1" style="text-align: center;" data-title="Confirmacion">
+                        @{
+                            var estado = ObtenerEstado(oPersona.Id);
+                            if (estado == "Preinscripto" ||
+                            estado == "No aceptado" || estado == "Preinscripto I.")
+                            {
+                                if (accesoDenegado.Contains(oPersona))
+                                {
+                                    <input type="checkbox" checked @onchange="@(async (e) =>await CheckboxClicked(oPersona, e.Value))" />
+                                }
+
+                                else
+                                {
+                                    <input type="checkbox" @onchange="@(async (e) =>await CheckboxClicked(oPersona, e.Value))" />
+                                }
+                            }
+                            else
+                            {
+
+                                <p>-</p>
+                            }
+
+                        }
+
+
+
+                    </td>
+
+                </tr>
+            }
+        </tbody>
+  
+            
+
+        <thead hidden="@IsShowError">
+            <tr role="row">
+                <th colspan="7" style="text-align: center;background-color: #f8d7da;border-color: #f5c6cb;">Datos mal cargados</th>
+            </tr>
+            <tr role="row">
+
+                <th>Nombre</th>
+                <th>Apellido</th>
+                <th>Email</th>
+                <th>Organismo</th>
+                <th>-</th>
+                <th>-</th>
+
+            </tr>
+        </thead>
+        <tbody hidden="@IsShowError">
+            @foreach (var oPersona in cargaErronea)
+            {
+                <tr role="row" class="table-danger">
+                    <td class="sorting_1" data-title="Id">
+                        <p>@oPersona.Nombre</p>
+                    </td>
+                    <td class="sorting_1" data-title="Id">
+                        <p>@oPersona.Apellido</p>
+                    </td>
+                    <td class="sorting_1" data-title="Id">
+                        <p>@oPersona.MailContacto</p>
+                    </td>
+
+                    <td class="sorting_1" data-title="Id">
+                        <p>@oPersona.IdOrganismo</p>
+                    </td>
+                    <td class="sorting_1" data-title="Id">
+                        <p>-</p>
+                    </td>
+                    <td class="sorting_1" data-title="Id">
+                        <p>-</p>
+                    </td>
+                </tr>
+            }
+        </tbody>
+    </table>
+  
+    <br />
+    <br />
+    <br />
+    <br />
+    <br />
+    <br />
+    <br />
+    <br />
+    <br />
+    <br />
+    <br />
+</AuthorizeView>
+
+@code {
+    [Parameter]
+    public int Id { get; set; }
+    public string Url = "api/excel/UpLoadExcel";
+    public string UrlPersona = "/api/persona"; 
+    public string urlOrganismo = "/api/organismo";
+    public string UrlInvitacion = "/api/invitacion";
+    public string UrlCorreo = "/api/correo";
+    public string UrlEvento = "/api/evento";
+    public string UrlEventoParticipante = "/api/eventoparticipante";
+    public bool confirmo = false;
+    public bool encontroPreinscripto = true;
+    public bool encontroConfirmados = true;
+
+    List<Persona> personas = new List<Persona>();
+    List<Persona> cargaErronea = new List<Persona>();
+    List<Persona> accesoDenegado = new List<Persona>();
+    List<Organismo> organismos = new List<Organismo>();
+    List<Invitacion> invitaciones = new List<Invitacion>();
+    List<EventoParticipante> eventoParticipantes = new List<EventoParticipante>();
+    List<Persona> personasYaInvitadas = new List<Persona>();
+    Respuesta<Object> oRespuesta = new Respuesta<Object>();
+    Respuesta<Organismo> oRespuestaOrganismos = new Respuesta<Organismo>();
+    Respuesta<Evento> oRespuestaEvento = new Respuesta<Evento>();
+
+    Respuesta<Archivo> oRespuestaArchivo = new Respuesta<Archivo>();
+
+
+    Respuesta<List<Invitacion>> oRespuestaInvitaciones = new Respuesta<List<Invitacion>>(); private string Message { get; set; } = "";
+    Respuesta<EventoParticipante> oRespuestaEventoParticipante = new Respuesta<EventoParticipante>();
+    IFileListEntry file;
+    private string MensajeTablaImport { get; set; } = "Sin datos aún";
+    string fileContent;
+    const string DefaultStatus = ".Haga click o arrastre el archivo hasta el botón";
+    string status = DefaultStatus;
+    string NombreEvento;
+    int? CantInvitados { get; set; } = 0;
+    int? CupoDisponible { get; set; } = 0;
+    int? InvitadosConfirmados { get; set; } = 0;
+    string estadoInscripcion { get; set; } = "";
+    private bool esconderEnviarEM { get; set; } = true;
+    private bool esconderReenviar { get; set; } = true;
+    private bool IsShowError { get; set; } = true;
+    private bool HayPrograma { get; set; } = false;
+
+    public bool botonEnviarD { get; set; } = false;
+    public bool botonReenviarD { get; set; } = false;
+    public bool botonConfirmarD { get; set; } = false;
+    public bool botonReenviarInvitacionPresencialD { get; set; } = false;
+    public bool descargarD { get; set; } = false;
+    public bool botonFormularioRegistro { get; set; } = false;
+
+    private EventosCeremonial.Components.ModalEnviarInscripcion modalEnviarInscripcion { get; set; }
+
+
+    private bool HayFlyer = true;
+    LoggerManger logger = new LoggerManger();
+    public string UrlArchivo = "/api/archivos";
+
+
+    private string porcentajeAvance { get; set; } = "0%";
+    private bool esconderProgresoEnvios { get; set; } = true;
+
+    private void ShowError(bool mostrar)
+    {
+        if (mostrar)
+            IsShowError = false;
+        else
+            IsShowError = true;
+    }
+    private bool IsShowTabla { get; set; } = true;
+    private void ShowTabla(bool mostrar)
+    {
+        if (mostrar)
+            IsShowTabla = false;
+        else
+            IsShowTabla = true;
+    }
+
+    protected override async Task OnInitializedAsync()
+    {
+        try
+        {
+
+            //SE CARGAN LOS INVITADOS
+            if (Id != 0)
+            {
+
+                MensajeTablaImport = "Buscando Invitados...";
+                oRespuestaEvento = await Http.GetFromJsonAsync<Respuesta<Evento>>(UrlPersona + "/TraerEvento/" + Id);
+                if (oRespuestaEvento.Data != null)
+                {
+                    await traerArchivosDelEvento();//TRAE LOS ARCHIVOS DEL EVENTO Y LOS ALMACENA EN LA MEMORIA EN CASO DE QUE SE VAYAN A MANDAR CORREO CON ARCHIVOS ADJUNTOS
+
+                    NombreEvento = oRespuestaEvento.Data.Nombre;
+
+                }
+                if (oRespuestaEvento.Data != null)
+                {
+
+                    oRespuestaInvitaciones = await Http.GetFromJsonAsync<Respuesta<List<Invitacion>>>(UrlInvitacion + "/" + Id);
+                    if (oRespuestaInvitaciones.Exito == 0)
+                    {
+                        MensajeTablaImport = "No se encontraron invitaciones";
+
+                    }
+                    else
+                    {
+                        invitaciones = oRespuestaInvitaciones.Data;
+
+                        if (invitaciones.Count() > 0)
+                        {
+                            foreach (Invitacion item in invitaciones)
+                            {
+                                if (item.IdPersona != null)
+                                {
+                                    oRespuestaEventoParticipante = await Http.GetFromJsonAsync<Respuesta<EventoParticipante>>(UrlEventoParticipante + "/" + item.Id);
+
+                                    var personaAux = await Http.GetFromJsonAsync<Respuesta<Persona>>(UrlPersona + "/" + item.IdPersona);
+
+
+                                    if (personaAux.Exito == 1)
+                                    {
+                                        Persona aux = personaAux.Data;
+                                        personasYaInvitadas.Add(aux);
+
+                                        if (oRespuestaEventoParticipante.Data != null)
+                                        {
+                                            eventoParticipantes.Add(oRespuestaEventoParticipante.Data);
+
+                                            //HABILITA LOS CHECKS SEGUN EL ESTADO DEL PARTICIPANTE
+                                            if (oRespuestaEventoParticipante.Data.EstadodeInscripcion == "No aceptado")
+                                            {
+                                                accesoDenegado.Add(aux);
+                                            }
+                                            if (oRespuestaEventoParticipante.Data.EstadodeInscripcion == "Preinscripto"
+                                            && encontroPreinscripto == true)
+                                            {
+
+                                                encontroPreinscripto = false;
+                                            }
+                                            if (oRespuestaEventoParticipante.Data.EstadodeInscripcion == "Preinscripto I."
+                                           && encontroPreinscripto == true)
+                                            {
+                                                encontroPreinscripto = false;
+                                            }
+
+                                            if (oRespuestaEventoParticipante.Data.EstadodeInscripcion == "Aceptado"
+                                            && encontroConfirmados == true)
+                                            {
+                                                encontroConfirmados = false;
+                                            }
+
+                                        }
+                                    }
+                                }
+                            }
+
+                        }
+
+                        if (personasYaInvitadas.Count() > 0)
+                        {
+                            CompletarCamposConteo(oRespuestaEvento.Data);
+                            MensajeTablaImport = "Se encontraron invitaciones";
+                            esconderReenviar = false;
+                            ShowTabla(true);
+                        }
+                        else
+                        {
+                            MensajeTablaImport = "No se encontraron invitaciones";
+                        }
+                    }
+                }
+                else
+                {
+
+                    logger.LogError("No se encontro evento");
+                }
+
+
+            }
+        }
+        catch (Exception e)
+        {
+
+            logger.LogError("Error en inicialize import", e);
+        }
+
+    }
+
+    //FUNCION PARA MANEJAR LOS CHECKS DE NO ACEPTADO, DESTILDA
+    //EN CASO DE QUE SE TILDEE UNO NUEVO MANDA EL CAMBIO POR POR POST A LA LISTA DE EVENTOS PARTICIPANTE
+    // TAMBIEN SE REINICIA LA PAGINA PARA QUE SE VEAN LOS CAMBIOS
+    private async Task CheckboxClicked(Persona idPersonaInvitada, object checkedValue)
+    {
+        DeshabilitarBotonesImport();
+        if ((bool)checkedValue)
+        {
+
+            if (!accesoDenegado.Contains(idPersonaInvitada))
+            {
+
+                await PasarADenegadoOPreinscripto(idPersonaInvitada, "/RechazarParticipante/", "No aceptado", true);
+
+            }
+        }
+        else
+        {
+            if (accesoDenegado.Contains(idPersonaInvitada))
+            {
+
+                await PasarADenegadoOPreinscripto(idPersonaInvitada, "/VolverAPreinscripto/", "Preinscripto", false);
+
+                if (accesoDenegado.Count() == 0)
+                {
+
+                    FuncionesBasicas.reloadPage(uriHelper);
+
+                }
+            }
+        }
+        return;//NO RETORNA NADA
+    }
+    //EN CASO DE QUE SE VUELVA A HABILITAR A ALGUIEN NO ACEPTADO SE LE CAMBIA EL ESTADO EN LA LISTA DE EVENTOSPARTICIPANTES
+    private async Task PasarADenegadoOPreinscripto(Persona idPersonaInvitada, string metodoApiRest, string estadoInscripcion, bool EsNoAceptado)
+    {
+        DeshabilitarBotonesImport();
+
+        var invitacionPersona = invitaciones.Where(p => p.IdPersona == idPersonaInvitada.Id).ToList();
+        var invitacionDenegada = invitacionPersona.ElementAt(0).Id;
+
+        await Http.PutAsJsonAsync<int>(UrlEventoParticipante + metodoApiRest + invitacionDenegada, invitacionDenegada);
+        var rta = await Http.GetFromJsonAsync<Respuesta<EventoParticipante>>(UrlEventoParticipante + "/" + invitacionDenegada);
+        if (EsNoAceptado == true)
+        {
+            if (rta.Data.EstadodeInscripcion == estadoInscripcion)
+            {
+                accesoDenegado.Add(idPersonaInvitada);
+            }
+        }
+        else
+        {
+            if (rta.Data.EstadodeInscripcion == estadoInscripcion)
+            {
+                accesoDenegado.Remove(idPersonaInvitada);
+            }
+
+        }
+        await HabilitarBotonesImport();
+
+    }
+    async Task EnviarFormularioRegistro()
+    {
+
+        ChequearSiHayFlyer();
+
+        if (HayFlyer != false)
+        {
+            await JsRuntime.InvokeVoidAsync("AbrirModalEnviarInscripcion");
+        }
+        else
+        {
+            
+            MensajeTablaImport = "Error no se adjunto flyer";
+        }
+
+    }
+    async Task SubirArchivoAImport(IFileListEntry[] files)
+    {
+        DeshabilitarBotonesImport();
+        ChequearSiHayFlyer();
+
+
+        if (HayFlyer == false)
+        {
+
+            MensajeTablaImport = "Error no se adjunto flyer";
+
+            await HabilitarBotonesImport();
+
+        }
+
+        else
+        {
+            try
+            {
+                var extension = "";
+                var file = files.FirstOrDefault();
+                if (file == null)
+                {
+                    await HabilitarBotonesImport();
+
+                    return;
+
+                }
+                else
+                {
+
+                    extension = file.Name.Split(".")[1];
+                    if (extension != "csv")
+                    {
+
+                        string mensaje = "El archivo seleccionado no está en formato csv";
+                        await JsRuntime.InvokeVoidAsync("alert", mensaje);
+                        await HabilitarBotonesImport();
+
+                        return;
+
+
+                    }
+
+                }
+
+                //CARGA ARCHIVO EN MEMORIA
+                using (var stream = new MemoryStream())
+                {
+
+                    await file.Data.CopyToAsync(stream);
+
+                    if (stream.Length > 1024 * 1024)
+                    {
+                        //SI EL ARCHIVO ES SUPERIOR A 5MB LO DESHABILITA
+                        MensajeTablaImport = "Archivo demasido grande. Supera los 5MB";
+                        await JsRuntime.InvokeVoidAsync("alert", MensajeTablaImport);
+                        await HabilitarBotonesImport();
+
+                        return;
+
+                    }
+                    else
+                    {
+                        //SE DEBE POSICIONAR EL LECTOE EN 0 PARA COMENZAR A LEER DESDE EL PRINCIPIO
+                        stream.Seek(0, SeekOrigin.Begin);
+
+                        List<Persona> excel = new List<Persona>();
+                        using (var reader = new StreamReader(stream, Encoding.GetEncoding(1250)))
+                        {
+
+                            string line;
+
+                            int contadorLineas = 0;
+
+                            try
+                            {
+
+                                while ((line = reader.ReadLine()) != null)
+                                {
+                                    //ES UN TEXTO SEPARADO POR ; POR LO TANTO AUNQUE EL NO SE VEAN EN EL EXCEL LA APLICACIONES LAS LEE ASI
+                                    //CADA COLUMNA ESTA SEPARADA POR ;
+                                    var array = line.Split(";");
+                                    if (contadorLineas > 0)
+                                    {
+                                        //LLAMA A LA FUNCION QUE CREA UN OBJETO PERSONA, HAY QUE CHEQUEAR QUE LOS CAMPOS NO VENGAN VACIOS Y SI VIENEN HAY QUE PONERLES ALGUN VALOR PRO DEFECTO
+                                        Persona aux = FuncionesBasicas.armarObjectPersona(array);
+
+                                        excel.Add(aux);
+
+                                    }
+                                    contadorLineas++;
+
+                                }
+
+                            }
+                            catch (Exception ex)
+                            {
+
+                                logger.LogError("Error en leer excel", ex);
+                                await HabilitarBotonesImport();
+
+                            }
+
+                            //MANDA LOS DATOS A LA  BASE DE DATOS CORRESPONDIENTES
+                            await PasarDatosExcelADB(excel);
+                            //CUANDO TERMINA MUESTRA LA BARRA DE PROGRESO AL 100
+                            await JsRuntime.InvokeVoidAsync("agregarPorcentajeABarra", 100);
+
+                            await MostrarInvitadosNuevos(excel);
+
+
+                        }
+                    }
+                }
+            }
+            catch (Exception e)
+            {
+                fileContent = $"Error:\r\n{e.Message}\r\n{e.StackTrace}";
+                MensajeTablaImport = "Error en formato de archivo";
+                await HabilitarBotonesImport();
+
+            }
+
+
+        }
+    }
+
+    //FUNCION PARA RECORRER LOS LISTAS DE PERSONAS, INVITADOS 
+    // Y EVENTOS PARTICIPANTES. DEVUELVE ELE STADO DE INSCRIPCION DE ESA PERSONA
+    //LAS LISTAS SE CARGAN EN EL ONINITIALIZE
+    private string ObtenerEstado(int idPersona)
+    {
+        string retorno = "";
+
+        if (invitaciones != null)
+        {
+            var invitacionPersona = invitaciones.Where(p => p.IdPersona == idPersona).ToList();
+            if (eventoParticipantes.Any(p => p.IdInvitacion == invitacionPersona.ElementAt(0).Id))
+            {
+                var eventoPersona = eventoParticipantes.Where(p => p.IdInvitacion == invitacionPersona.ElementAt(0).Id).ToList();
+                retorno = eventoPersona.ElementAt(0).EstadodeInscripcion;
+            }
+        }
+
+        return retorno;
+
+    }
+
+    //REVISA LAS LISTAS SI LA DE ERRONEOS ES MAYOR A 1 LA MUESTRA
+    //LO MISMO LA DE PERSONAS INVITADAS AL EVENTO
+    //EN CASO DE QUE NO SE ENCUENTREN INVITADOS MUESTRA UN MENSAJE
+    private async Task MostrarInvitadosNuevos(List<Persona> excel)
+    {
+
+        if (cargaErronea.Count() >= 1)
+        {
+            ShowError(true);
+        }
+        else
+        {
+            ShowError(false);
+        }
+        if (personas.Count() >= 1)
+        {
+            MensajeTablaImport = "Datos listos. Haga click en Enviar correos";
+            await HabilitarBotonesImport();
+
+            esconderEnviarEM = false;
+            ShowTabla(true);
+        }
+        else
+        {
+            ShowTabla(false);
+            MensajeTablaImport = "No se encontraron datos correctos";
+
+            if (personasYaInvitadas.Count() > 1)
+            {
+                ShowTabla(true);
+                MensajeTablaImport = "No se encontraron invitados nuevos en su planilla";
+
+            }
+        }
+    }
+    //LO QUE HACE ES CORROBORAR QUE SE ENCUENTREN LOS ARCHIVOS CORRECTOS ANTES DE ENVIAR EL CORREO
+    //SI NO ENCONTRO LA URL DE STREAMING VA A MOSTRAR UN MENSAJE
+    private async Task ValidarAntesDeConfirmar(bool HayURL, Evento evento)
+    {
+        var root = FuncionesBasicas.getAppSettings();
+
+        if (evento.RutaPrograma != null)
+        {
+
+            string localwwwroot = root.GetSection("DVArchivos")["EventosCeremonial"] + "/Temporales/Otros/" + evento.RutaPrograma;
+
+            if (File.Exists(localwwwroot))
+            {
+                HayPrograma = true;
+
+            }
+        }
+        else
+        {
+
+            HayPrograma = true;
+            //POR AHORA NO ES OBLIGATORIO ADJUNTAR EL PROGRAMA
+
+            //string mensaje = "No se puede enviar Email de confirmación ya que no se encontró el programa del evento";
+            //await JsRuntime.InvokeVoidAsync("alert", mensaje);
+            //FuncionesBasicas.reloadPage(uriHelper);
+        }
+        if (evento.Formato.Contains("Streaming") || evento.Formato.Contains("Virtual"))
+        {
+            if (evento.URL == null)
+            {
+                HayURL = false;
+                string mensaje = "No se puede enviar Email de confirmación ya que no se encontró la url del evento";
+                await JsRuntime.InvokeVoidAsync("alert", mensaje);
+                await HabilitarBotonesImport();
+
+            }
+        }
+    }
+
+    //FUNCION QUE PERMITE MANDAR MAIL DE VACANTE CONFIRMADA A LOS INVITADOS QUE SE ENCUENTRAN PRE INSCRIPTOS
+    private async Task ConfirmarInvitados()
+    {
+        DeshabilitarBotonesImport();//DESHABILITA BOTONES... ESPERANDO
+        bool HayURL = true;
+
+        oRespuestaEvento = await Http.GetFromJsonAsync<Respuesta<Evento>>(UrlPersona + "/TraerEvento/" + Id);
+        Evento evento = oRespuestaEvento.Data;//TRAE DATOS DEL EVENTO
+
+        await ValidarAntesDeConfirmar(HayURL, oRespuestaEvento.Data);
+
+        ChequearSiHayFlyer();//CORROBORA QUE ESTE EL FLYER
+
+
+        if (HayPrograma == true && HayFlyer == true)//PASA PRUEBA
+        {
+            if (Id != 0 && personasYaInvitadas.Count() > 0)//HAY INVITADOS
+            {
+                await JsRuntime.InvokeVoidAsync("agregarPorcentajeABarra", 0);//PREPARA BARRA DE PORCENTAJES
+
+                MailRequest listaConfirmados = new MailRequest();//OBJETO QUE CONTIENE LA LISTA DE CORREOS Y LOS DATOS DEL EVENTO
+                listaConfirmados.emailEvento = oRespuestaEvento.Data;
+                List<Persona> listaPersonas = new List<Persona>();
+                oRespuestaInvitaciones = await Http.GetFromJsonAsync<Respuesta<List<Invitacion>>>(UrlInvitacion + "/" + Id);
+
+                await JsRuntime.InvokeVoidAsync("agregarPorcentajeABarra", 20);
+                double porcentajeInicial = 20;
+
+                float porcentajeXPersona = FuncionesBasicas.calcularPorcentajeXLista(personasYaInvitadas.Count(), 50);
+
+                foreach (Persona item in personasYaInvitadas)
+                {
+                    porcentajeInicial = FuncionesBasicas.acumularPorcentaje(porcentajeInicial, porcentajeXPersona);
+
+                    await JsRuntime.InvokeVoidAsync("agregarPorcentajeABarra", porcentajeInicial);
+
+                    var invitacionPersona = oRespuestaInvitaciones.Data.Where(p => p.IdPersona == item.Id).ToList();
+                    oRespuestaEventoParticipante = await Http.GetFromJsonAsync<Respuesta<EventoParticipante>>(UrlEventoParticipante + "/" + invitacionPersona.ElementAt(0).Id);
+
+                    //SOLO PASAN A LISTA DE CORREOS
+                    if (oRespuestaEventoParticipante.Data.EstadodeInscripcion == "Preinscripto" || oRespuestaEventoParticipante.Data.EstadodeInscripcion == "Preinscripto I.")
+                    {
+                        listaPersonas.Add(item);
+
+                    }
+
+                }
+                await JsRuntime.InvokeVoidAsync("agregarPorcentajeABarra", 80);
+
+                listaConfirmados.emailPersonas = listaPersonas;
+                if (personas.Count() > 500)
+                {
+                    logger.LogError("Error500Invitados");//HAY MAS DE 500 INVITADOS EN LA LISTA
+                    await HabilitarBotonesImport();
+
+                }
+
+                if (oRespuestaEvento.Exito == 1)
+                {
+                    await JsRuntime.InvokeVoidAsync("agregarPorcentajeABarra", 100);
+                    await Http.PostAsJsonAsync<MailRequest>(UrlInvitacion + "/EnviarCorreosConfirmados", listaConfirmados);
+                    FuncionesBasicas.reloadPage(uriHelper);
+
+                }
+                else
+                {
+
+                    logger.LogError("Error ConfirmarInvitados");
+                    await HabilitarBotonesImport();
+
+                }
+            }
+
+        }
+        else
+        {
+            MensajeTablaImport = "Error no se adjunto programa, Flyer o falta URL de streaming";
+            await HabilitarBotonesImport();
+        }
+    }
+
+
+    private async Task EnviarRecordatorio()
+    {
+        DeshabilitarBotonesImport();
+        try
+        {
+            bool HayURL = true;
+            oRespuestaEvento = await Http.GetFromJsonAsync<Respuesta<Evento>>(UrlPersona + "/TraerEvento/" + Id);
+            Evento evento = oRespuestaEvento.Data;
+
+            await ValidarAntesDeConfirmar(HayURL, oRespuestaEvento.Data);
+
+
+            if (HayPrograma == true && HayFlyer == true && HayURL == true)
+            {
+
+                if (Id != 0 && personasYaInvitadas.Count() > 0)
+                {
+                    await JsRuntime.InvokeVoidAsync("agregarPorcentajeABarra", 0);
+
+                    MailRequest listaConfirmados = new MailRequest();
+                    listaConfirmados.emailEvento = oRespuestaEvento.Data;
+                    List<Persona> listaPersonas = new List<Persona>();
+                    oRespuestaInvitaciones = await Http.GetFromJsonAsync<Respuesta<List<Invitacion>>>(UrlInvitacion + "/" + Id);
+
+                    await JsRuntime.InvokeVoidAsync("agregarPorcentajeABarra", 20);
+                    double porcentajeInicial = 20;
+
+                    float porcentajeXPersona = FuncionesBasicas.calcularPorcentajeXLista(personasYaInvitadas.Count(), 50);
+
+                    foreach (Persona item in personasYaInvitadas)
+                    {
+                        porcentajeInicial = FuncionesBasicas.acumularPorcentaje(porcentajeInicial, porcentajeXPersona);
+
+                        await JsRuntime.InvokeVoidAsync("agregarPorcentajeABarra", porcentajeInicial);
+
+
+                        var invitacionPersona = oRespuestaInvitaciones.Data.Where(p => p.IdPersona == item.Id).ToList();
+                        oRespuestaEventoParticipante = await Http.GetFromJsonAsync<Respuesta<EventoParticipante>>(UrlEventoParticipante + "/" + invitacionPersona.ElementAt(0).Id);
+                        if (oRespuestaEventoParticipante.Data.EstadodeInscripcion == "Aceptado")
+                        {
+                            listaPersonas.Add(item);
+
+                        }
+
+                    }
+                    await JsRuntime.InvokeVoidAsync("agregarPorcentajeABarra", 80);
+
+                    listaConfirmados.emailPersonas = listaPersonas;
+                    if (personas.Count() > 500)
+                    {
+                        logger.LogError("Error500Invitados");
+                        await HabilitarBotonesImport();
+
+                    }
+
+                    if (oRespuestaEvento.Exito == 1)
+                    {
+                        await JsRuntime.InvokeVoidAsync("agregarPorcentajeABarra", 100);
+
+                        await Http.PostAsJsonAsync<MailRequest>(UrlInvitacion + "/EnviarCorreosConfirmadosRecordatorio", listaConfirmados);
+                        FuncionesBasicas.reloadPage(uriHelper);
+
+                    }
+                    else
+                    {
+
+                        logger.LogError("Error ConfirmarInvitados");
+                        await HabilitarBotonesImport();
+
+                    }
+                }
+
+            }
+            else
+            {
+
+                MensajeTablaImport = "Error no se adjunto programa, Flyer o falta URL de streaming";
+                await HabilitarBotonesImport();
+
+            }
+
+        }
+        catch (Exception e)
+        {
+            logger.LogError("Error EnviarRecordatorio", e);
+            await HabilitarBotonesImport();
+
+        }
+    }
+    //CUANDO SE HACE CLICK EN UN BOTON DE ENVIAR CORREO SE DESHABILITAN EL RESTO LOS BOTONES 
+    // QUE NO SE PUEDEN TOCAR MIENTRAS NO TERMINE DE EJECUTARSE EL CODIGO
+    private void DeshabilitarBotonesImport()
+    {
+        botonEnviarD = true;
+        botonReenviarD = true;
+        botonConfirmarD = true;
+        botonReenviarInvitacionPresencialD = true;
+        descargarD = true;
+        botonFormularioRegistro = true;
+    }
+
+    //VUELVEN A HABILITARSE LOS BOTONES TRAS EJECUTARSE CODIGO
+    private async Task HabilitarBotonesImport()
+    {
+        botonEnviarD = false;
+        botonReenviarD = false;
+        botonConfirmarD = false;
+        botonReenviarInvitacionPresencialD = false;
+        descargarD = false;
+        botonFormularioRegistro = false;
+
+    }
+
+
+
+    private async Task EnviarCorreos()
+    {
+        //await traerArchivosDelEvento();
+        DeshabilitarBotonesImport();
+        ChequearSiHayFlyer();
+
+        try
+        {
+            if (HayFlyer == true)
+            {
+                if (Id != 0 && personas.Count() > 0 && HayFlyer == true)
+                {
+                    esconderProgresoEnvios = false;
+
+                    oRespuestaInvitaciones = await Http.GetFromJsonAsync<Respuesta<List<Invitacion>>>(UrlInvitacion + "/" + Id);
+                    oRespuestaEvento = await Http.GetFromJsonAsync<Respuesta<Evento>>(UrlPersona + "/TraerEvento/" + Id);
+                    MailRequest lista = new MailRequest();
+                    lista.emailEvento = oRespuestaEvento.Data;
+                    List<Persona> listaPersonas = new List<Persona>();
+
+                    await JsRuntime.InvokeVoidAsync("agregarPorcentajeABarra", 20);
+
+                    float porcentajeXPersona = FuncionesBasicas.calcularPorcentajeXLista(personas.Count(), 50);
+
+                    double porcentajeInicial = 20;
+                    if (personas.Count() > 0)
+                    {
+                        foreach (Persona item in personas)
+                        {
+                            porcentajeInicial = FuncionesBasicas.acumularPorcentaje(porcentajeInicial, porcentajeXPersona);
+
+                            await JsRuntime.InvokeVoidAsync("agregarPorcentajeABarra", porcentajeInicial);
+
+                            if (oRespuestaInvitaciones.Data.Any(p => p.IdPersona == item.Id))
+                            {
+                                var invitacionPersona = oRespuestaInvitaciones.Data.Where(p => p.IdPersona == item.Id).ToList().ElementAt(0);
+
+                                //HAY QUE MODIFICAR EL ESTADO DEL INVITADO A PENDIENTE PORQUE SE LE ENVIO CORREO
+                                var oRespuestaEventoParticipante = await Http.GetFromJsonAsync<Respuesta<EventoParticipante>>(UrlEventoParticipante + "/PasoAPendiente/" + invitacionPersona.Id);
+                                if (oRespuestaEventoParticipante.Data != null)
+                                {
+
+                                    if (oRespuestaEventoParticipante.Data.EstadodeInscripcion == "Pendiente")
+                                    {
+                                        listaPersonas.Add(item);
+                                    }
+                                }
+                                else
+                                {
+                                    await HabilitarBotonesImport();
+                                }
+
+                            }
+                        }
+                    }
+                    await JsRuntime.InvokeVoidAsync("agregarPorcentajeABarra", 70);
+
+                    lista.emailPersonas = listaPersonas;
+                    if (personas.Count() > 500)
+                    {
+                        logger.LogError("Error500Invitados");
+                        await HabilitarBotonesImport();
+                    }
+
+                    if (oRespuestaEvento.Exito == 1)
+                    {
+                        await JsRuntime.InvokeVoidAsync("agregarPorcentajeABarra", 80);
+                        await Http.PostAsJsonAsync<MailRequest>(UrlInvitacion + "/EnviarCorreosAPendientes", lista);
+                        await JsRuntime.InvokeVoidAsync("agregarPorcentajeABarra", 100);
+                        esconderProgresoEnvios = false;
+                        FuncionesBasicas.reloadPage(uriHelper);
+                    }
+                    else
+                    {
+                        logger.LogError("Error mensajes");
+                        await HabilitarBotonesImport();
+                        FuncionesBasicas.reloadPage(uriHelper);
+                    }
+                }
+
+            }
+
+        }
+        catch (Exception e)
+        {
+            logger.LogError("Error EnviarCorreos", e);
+            await HabilitarBotonesImport();
+            FuncionesBasicas.reloadPage(uriHelper);
+        }
+    }
+
+
+
+    private async Task ReenviarCorreos()
+    {
+        ChequearSiHayFlyer();
+
+        if (HayFlyer == true)
+        {
+            personas.AddRange(personasYaInvitadas);
+            await EnviarCorreos();
+        }
+
+    }
+    //LLAMA A LA FUNCION PARA CREAR EL OBJETO DE INVITADO Y HACE EL POST
+    private Invitacion MandarInvitacionADB(Persona participante, int idEvento, List<Persona> cargaErronea)
+    {
+        Invitacion oInvitacion = null;
+        oInvitacion = FuncionesBasicas.armarInvitadoPersona(participante, idEvento);
+        postInvitado(UrlInvitacion, oInvitacion, cargaErronea, participante);
+        return oInvitacion;
+    }
+
+    //REVISA QUE HAYA FLYER ANTES DE ENVIAR EL CORREO
+    private async Task ChequearSiHayFlyer()
+    {
+        var root = FuncionesBasicas.getAppSettings();
+
+        if (oRespuestaArchivo.Data != null)
+        {
+
+            string localwwwroot = root.GetSection("DVArchivos")["EventosCeremonial"] + "/Temporales/Otros/" + oRespuestaArchivo.Data.NombreFlyer;
+
+            if (!File.Exists(localwwwroot))
+            {
+                HayFlyer = false;
+
+                string mensaje = "No se puede enviar email de confirmación ya que no se encontró el Flyer del evento";
+                await JsRuntime.InvokeVoidAsync("alert", mensaje);
+                await HabilitarBotonesImport();
+
+                //FuncionesBasicas.reloadPage(uriHelper);
+
+            }
+
+        }
+    }
+
+    //TRAE LOS ARCHIVOS DE LA BASE DE DATOS Y LOS ALMACENA EN EL DISCO VIRTUAL
+    public async Task traerArchivosDelEvento()
+    {
+
+        oRespuestaArchivo = await Http.GetFromJsonAsync<Respuesta<Archivo>>(UrlArchivo + "/" + Id);
+        LoggerManger logger = new LoggerManger();
+        var root = FuncionesBasicas.getAppSettings();
+
+        if (oRespuestaArchivo.Data != null)
+        {
+            if (oRespuestaArchivo.Data.NombreFlyer != null)
+            {
+                MemoryStream m = new MemoryStream(oRespuestaArchivo.Data.Flyer);
+                //using (MemoryStream m = new MemoryStream(oRespuestaArchivo.Data.Flyer))
+                //{
+                string path = root.GetSection("DVArchivos")["EventosCeremonial"] + "/Temporales/Otros/" + oRespuestaArchivo.Data.NombreFlyer;
+                try
+                {
+                    if (!File.Exists(path))
+                    {
+
+                        using (System.IO.FileStream fileStream = new FileStream(path, FileMode.Create, FileAccess.Write))
+                        {
+                            m.WriteTo(fileStream);
+                        }
+                    }
+
+                }
+                catch (Exception ex)
+                {
+                    await HabilitarBotonesImport();
+                }
+                //}
+            }
+            if (oRespuestaEvento.Data.RutaPrograma != null)
+            {
+
+                using (MemoryStream m = new MemoryStream(oRespuestaArchivo.Data.Programa))
+                {
+                    string path = root.GetSection("DVArchivos")["EventosCeremonial"] + "/Temporales/Otros/" + oRespuestaEvento.Data.RutaPrograma;
+
+                    try
+                    {
+                        if (!File.Exists(path))
+                        {
+
+                            using (System.IO.FileStream fileStream = new FileStream(path, FileMode.Create, FileAccess.Write))
+                            {
+                                m.WriteTo(fileStream);
+                                fileStream.Close();
+                            }
+                        }
+                    }
+                    catch (Exception ex)
+                    {
+
+                        logger.LogError("Error en traerArchivosDelEvento programa", ex);
+                        await HabilitarBotonesImport();
+
+                    }
+                }
+
+            }
+
+        }
+    }
+    //
+    private void CompletarCamposConteo(Evento oEvento)
+    {
+        CantInvitados = personasYaInvitadas.Count();
+        InvitadosConfirmados = eventoParticipantes.Where(p => p.EstadodeInscripcion == "Preinscripto" ||
+        p.EstadodeInscripcion == "Aceptado" || p.EstadodeInscripcion == "Preinscripto I.").ToList().Count();
+        CupoDisponible = oEvento.Cupo - InvitadosConfirmados;
+    }
+    async void postInvitado(string UrlInvitacion, Invitacion oInvitacion, List<Persona> cargaErronea, Persona persona)
+    {
+        var response = await Http.PostAsJsonAsync<Invitacion>(UrlInvitacion, oInvitacion);
+
+        if (!response.IsSuccessStatusCode)
+        {
+            cargaErronea.Add(persona);
+        }
+    }
+
+    private async Task PasarDatosExcelADB(List<Persona> excel)
+    {
+        var contador = 0;
+
+        await JsRuntime.InvokeVoidAsync("agregarPorcentajeABarra", 20);
+
+        double porcentajeInicial = 20;
+        try
+        {
+
+            foreach (var item in excel)
+            {
+                float porcentajeXPersona = FuncionesBasicas.calcularPorcentajeXLista(excel.Count(), 50);
+
+                await JsRuntime.InvokeVoidAsync("agregarPorcentajeABarra", porcentajeXPersona);
+
+
+                if (item.Apellido == "ERROR" || item.Nombre == "ERROR" || item.MailContacto == "-")
+                {
+
+                    if (item.MailContacto == "SINCORREO@SINCORREO.COM")
+
+                    {
+                        item.MailContacto = "-";
+
+                        //NO SE PUEDE EDITAR HASTA QUE NO ESTE CREADO EL OBJETO
+
+                    }
+                    cargaErronea.Add(item);
+
+
+                }
+                else
+                {
+                    contador++;
+                    var encontroInvitado = personasYaInvitadas.Find(x => x.MailContacto.Contains(item.MailContacto));
+                    var estaCargado = personas.Find(x => x.MailContacto.Contains(item.MailContacto));
+                    //consultar si esta en base de datos
+                    Respuesta<Persona> retornoGetID;
+                    retornoGetID = await Http.GetFromJsonAsync<Respuesta<Persona>>(UrlPersona + "/TraerId/" + item.MailContacto.ToLower());
+                    //pregunta si no subio ya esa persona, si está en la lista de personas ya le mando la invitacion
+                    if (estaCargado == null && encontroInvitado == null)
+                    {
+                        if (retornoGetID.Data != null)
+                        //esta en la base de datos de persona
+                        {
+                            //MANDA INVITACION A DB
+                            Persona personaAux = retornoGetID.Data;
+                            if (item.Apellido != personaAux.Apellido ||
+                            item.Nombre != personaAux.Nombre ||
+                            item.TelefonoContacto != personaAux.TelefonoContacto)
+                            {
+
+                                var nada = await Http.PutAsJsonAsync<Persona>(UrlPersona + "/EditarPersonaImport", FuncionesBasicas.retonarPersonaAux(item, personaAux));
+
+                            }
+
+                            Invitacion enviada = MandarInvitacionADB(personaAux, Id, cargaErronea);
+
+                            if (!cargaErronea.Contains(item))
+                            {
+
+                                personas.Add(personaAux);
+                                //var nada = await Http.PutAsJsonAsync<Persona>(UrlPersona, personaAux);
+                            }
+                        }
+                        else
+                        //No esta en la base de datos de persona
+                        {
+                            //NO ENCONTRO PERSONA EN dB
+                            //GUARDA PERSONA EN DB PERSONAS
+                            var nada = await Http.PostAsJsonAsync<Persona>(UrlPersona, item);
+                            if (nada != null)
+                            {
+                                retornoGetID = await Http.GetFromJsonAsync<Respuesta<Persona>>(UrlPersona + "/TraerId/" + item.MailContacto);
+                                //MANDA INVITACION A DB
+                                if (retornoGetID.Data != null)
+                                {
+                                    //MANDA INVITACION A DB
+                                    Persona personaAux = retornoGetID.Data;
+                                    Invitacion enviada = MandarInvitacionADB(personaAux, Id, cargaErronea);
+                                    if (!cargaErronea.Contains(personaAux))
+                                    {
+                                        personas.Add(personaAux);
+                                    }
+                                }
+                            }
+                            else
+                            {
+                                cargaErronea.Contains(item);
+                            }
+                        }
+
+                    }
+                }
+            }
+
+        }
+        catch (Exception e)
+        {
+
+            logger.LogError("Error en PasarDatosExcelADB", e);
+
+            await HabilitarBotonesImport();
+
+        }
+
+    }
+    }

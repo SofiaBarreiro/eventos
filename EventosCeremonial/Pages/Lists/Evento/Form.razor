@@ -1,0 +1,1598 @@
+﻿@page "/evento/form"
+@page "/evento/form/{Id:int}"
+@attribute [Authorize]
+
+@inject HttpClient Http
+@inject NavigationManager NavigationManager
+@inject IJSRuntime js
+@inject IFileUpload fileUpload
+@using Microsoft.Extensions.Logging;
+@using BlazorInputFile;
+@using System.Text;
+@using System.IO;
+@using iTextSharp.text;
+@using iTextSharp.text.pdf;
+@using System.Reflection;
+@using EventosCeremonial.Helpers;
+@using System.Globalization;
+@using Microsoft.Extensions.Configuration;
+@using System.Text.RegularExpressions;
+
+
+@using Microsoft.AspNetCore.Components.Web
+
+
+<div hidden="hidden" id="formularioEvento">
+
+    <h1>@accion Nuevo Evento</h1>
+    <EditForm Model="@oEvento">
+
+        <fieldset>
+            <div class="row">
+                <div class="col-md-10 form-group item-form">
+                    <label for="nombre">Nombre</label>
+                    <InputText id="txtNombreEvento" class="form-control" @bind-Value="oEvento.Nombre"></InputText>
+                    <label id="labelTitulo"></label>
+
+                    <ValidationMessage For="() => oEvento.Nombre" />
+                </div>
+            </div>
+            <div class="row">
+
+                <div class="col-md-8 form-group item-form">
+                    <label for="descripcion">Descripción</label>
+                    <InputTextArea class="form-control" style="min-height: calc(10.5em + .75rem + 2px);" id="inputDescripcion" @bind-Value="oEvento.Descripcion"></InputTextArea>
+                    <label id="labelDescripcion"></label>
+                    <ValidationMessage For="() => oEvento.Descripcion" />
+                </div>
+            </div>
+            <div class="row">
+                <div class="col-md-12 form-group item-form">
+                    <label for="formato">Formato</label>
+                    <br />
+                    <input type="checkbox" id="presencial" @onclick="ClickCheckPresencial" />
+                    @nombrePresencial
+                    <br />
+                    <input type="checkbox" id="virtualC" @onclick="ClickCheckVirtualC" />
+                    @nombreVirtual
+                    <br />
+                    <input type="checkbox" id="streaming" @onclick="ClickCheckStreaming" />
+                    @nombreStreaming
+                    <br />
+                </div>
+            </div>
+            <InputTextArea class="form-control" id="inputFormato" @bind-Value="oEvento.Formato" hidden></InputTextArea>
+            @* @if (presencial == true)
+                {*@
+            <div class="row" id="divPresencial" hidden=@presencial>
+                <div class="col-md-6 form-group item-form">
+                    <label for="descripcion">Ubicación</label>
+                    <InputSelect class="form-control" @bind-Value="oEvento.IdUbicacion" id="inputPresencial">
+                        <option value="0">--Seleccionar--</option>
+                        @foreach (var Ubicacion in Ubicaciones)
+                        {
+                            if (oEvento.IdUbicacion == Ubicacion.Id)
+                            {
+                                <option selected value="@Ubicacion.Id">@Ubicacion.Domicilio (@Ubicacion.Localidad - @Ubicacion.Provincia)</option>
+                            }
+                            else
+                            {
+                                <option value="@Ubicacion.Id">@Ubicacion.Domicilio (@Ubicacion.Localidad - @Ubicacion.Provincia)</option>
+                            }
+                        }
+                    </InputSelect>
+                    <ValidationMessage For="() => oEvento.IdUbicacion" />
+                </div>
+            </div>
+            @*  }
+                @if (virtualC == true)
+                {*@
+            <div class="row" id="divVirtual" hidden=@virtualC>
+                <div class="col-md-4 form-group item-form">
+                    <label for="plataforma">Plataforma</label>
+                    <InputSelect class="form-control" @bind-Value="oEvento.IdPlataforma" id="inputVirtual">
+                        <option value="0">--Seleccionar--</option>
+                        @foreach (var Plataforma in Plataformas)
+                        {
+                            if (oEvento.IdPlataforma == Plataforma.Id)
+                            {
+                                <option selected value="@Plataforma.Id">@Plataforma.Nombre</option>
+                            }
+                            else
+                            {
+                                <option value="@Plataforma.Id">@Plataforma.Nombre</option>
+                            }
+                        }
+                    </InputSelect>
+                    <ValidationMessage For="() => oEvento.IdPlataforma" />
+                </div>
+            </div>
+            @*     }
+                @if (virtualC == true || streaming == true)
+                {*@
+            <div class="row" id="divVirtualOStreaming" hidden=@virtualOStreaming>
+                <div class="col-md-6 form-group item-form">
+                    <label for="url">URL</label>
+                    <InputText class="form-control" @bind-Value="oEvento.URL" id="inputVirtualOStreaming"></InputText>
+                    <ValidationMessage For="() => oEvento.URL" />
+                </div>
+            </div>
+            @*  }
+                @if (virtualC == true )
+
+
+                {*@
+            <div id="divStreaming" hidden=@streaming>
+                <div class="row">
+                    <div class="col-md-6 form-group item-form">
+                        <label for="idReunion">Id de reunión</label>
+                        <InputText class="form-control" @bind-Value="oEvento.IdReunionVirtual" id="inputStreaming1"></InputText>
+                        <ValidationMessage For="() => oEvento.IdReunionVirtual" />
+                    </div>
+                    @*  </div>
+                        <div class="row">*@
+                    <div class="col-md-6 form-group item-form">
+                        <label for="password">Password</label>
+                        <InputText class="form-control" @bind-Value="oEvento.Password" id="inputStreaming2"></InputText>
+                        <ValidationMessage For="() => oEvento.Password" />
+                    </div>
+                </div>
+            </div>
+
+            @*  }
+            *@
+            <div class="row">
+                <div class="col-md-8 form-group item-form">
+                    <label for="agenda">Agenda</label>
+                    <InputTextArea class="form-control" style="min-height: calc(10.5em + .75rem + 2px);" @bind-Value="oEvento.Agenda"></InputTextArea>
+                    <ValidationMessage For="() => oEvento.Agenda" />
+                </div>
+            </div>
+            <div class="row">
+                <div class="col-md-12 form-group item-form">
+                    <label for="PortadaEvento">Portada del evento</label>
+
+
+                    @if (nombrePortada != null && nombrePortada != "")
+                    {
+
+                        @if (oEvento.Id == 0)
+                        {
+                            var urlTempoPortada = Http.BaseAddress.AbsoluteUri + "Archivos/Temporales/Portadas/" + nombrePortada;
+
+                            <div class="row">
+                                <div class="col-md-12">
+                                    <a href="@urlTempoPortada" target="_blank">@nombrePortada</a>
+
+                                </div>
+                            </div>
+                        }
+                        else
+                        {
+                            var root = FuncionesBasicas.getAppSettings();
+
+                            var nombreCompleto = root.GetSection("DVArchivos")["EventosCeremonial"] + "/Temporales/Portadas/" + nombrePortada;
+
+
+                            var urlTempoPortada = Http.BaseAddress.AbsoluteUri + "Archivos/Temporales/Portadas/" + nombrePortada;
+
+                            <div class="row">
+                                @if (File.Exists(nombreCompleto))
+                                {
+                                    <div class="col-md-12">
+                                        <a href="@urlTempoPortada" target="_blank">@nombrePortada</a>
+
+                                    </div>
+                                }
+                                else
+                                {
+
+                                    string localwwwroot = root.GetSection("DVArchivos")["EventosCeremonial"] + "/Temporales/Portadas/" + nombrePortada;
+
+                                    string url = "";
+                                    @if (File.Exists(localwwwroot))
+                                    {
+
+                                        url = Http.BaseAddress.AbsoluteUri + "Archivos/Temporales/Portadas/";
+
+
+                                    }
+
+                                    string cadenaPortada = "";
+                                    if (url != "")
+                                    {
+
+                                        cadenaPortada = url;
+
+
+                                    }
+
+                                    <div class="col-md-12">
+                                        <a href="@cadenaPortada" target="_blank">@nombrePortada</a>
+                                    </div>
+                                }
+                            </div>
+                        }
+                    }
+                    <br />
+                    <BlazorInputFile.InputFile OnChange="SubirPortada" style="font-weight: 0px;" />
+
+                </div>
+            </div>
+            <div class="row">
+                <div class="col-md-12 form-group item-form">
+                    <label for="FlyerEvento">Flyer del evento</label>
+
+                    @if (nombreFlyer != null && nombreFlyer != "")
+                    {
+
+                        @if (oEvento.Id == 0)
+                        {
+                            var urlTempoFly = Http.BaseAddress.AbsoluteUri + "Archivos/Temporales/Flyers/" + nombreFlyer;
+
+                            <div class="row">
+                                <div class="col-md-12">
+                                    <a href="@urlTempoFly" target="_blank">@nombreFlyer</a>
+
+                                </div>
+                            </div>
+                        }
+                        else
+                        {
+                            var root = FuncionesBasicas.getAppSettings();
+
+                            var nombreCompleto = root.GetSection("DVArchivos")["EventosCeremonial"] + "/Temporales/Flyers/" + nombreFlyer;
+                            var urlTempoFly = Http.BaseAddress.AbsoluteUri + "Archivos/Temporales/Flyers/" + nombreFlyer;
+
+                            <div class="row">
+                                @if (File.Exists(nombreCompleto))
+                                {
+                                    <div class="col-md-12">
+                                        <a href="@urlTempoFly" target="_blank">@nombreFlyer</a>
+
+                                    </div>
+                                }
+                                else
+                                {
+
+                                    string localwwwroot = root.GetSection("DVArchivos")["EventosCeremonial"] + "/Temporales/Flyers/" + nombreFlyer;
+
+                                    string url = "";
+                                    @if (File.Exists(localwwwroot))
+                                    {
+
+                                        url = Http.BaseAddress.AbsoluteUri + "Archivos/Temporales/Flyers/";
+
+
+                                    }
+
+                                    string cadena = "";
+                                    if (url != "")
+                                    {
+
+                                        cadena = url;
+
+
+                                    }
+
+                                    <div class="col-md-12">
+                                        <a href="@cadena" target="_blank">@nombreFlyer</a>
+                                    </div>
+                                }
+                            </div>
+                        }
+                    }
+                    <br />
+                    <BlazorInputFile.InputFile OnChange="SubirFlyer" style="font-weight: 0px;" />
+
+                </div>
+            </div>
+            <div class="row">
+                <div class="col-md-12 form-group item-form">
+                    <label for="rutaPrograma">Ruta programa</label>
+
+                    @* <InputTextArea id="rutas" class="form-control" @bind-Value="oEvento.RutaPrograma" ></InputTextArea>*@
+
+                    @if (oEvento.RutaPrograma != null && oEvento.RutaPrograma != "")
+                    {
+                        var urlTempo = Http.BaseAddress.AbsoluteUri + "Archivos/Temporales/Otros/" + oEvento.RutaPrograma.Trim();
+
+                        @if (oEvento.Id == 0)
+                        {
+
+                            <div class="row">
+
+                                <div class="col-md-12">
+                                    <a href="@urlTempo" target="_blank">@oEvento.RutaPrograma.Trim()</a>
+
+                                </div>
+                            </div>
+                        }
+                        else
+                        {
+                            var root = FuncionesBasicas.getAppSettings();
+
+                            var nombreCompleto = root.GetSection("DVArchivos")["EventosCeremonial"] + "/Temporales/Otros/" + oEvento.RutaPrograma.Trim();
+
+                            <div class="row">
+                                @if (File.Exists(nombreCompleto))
+                                {
+                                    <div class="col-md-12">
+                                        <a href="@urlTempo" target="_blank">@oEvento.RutaPrograma.Trim()</a>
+
+                                    </div>
+                                }
+
+                            </div>
+                        }
+                    }
+                    <br />
+                    <BlazorInputFile.InputFile OnChange="SubirArchivo" style="font-weight: 0px;" />
+                </div>
+            </div>
+
+            <div class="row">
+                <div class="col-md-6 form-group item-form">
+                    <label for="fechaInicio">Fecha y hora de inicio</label>
+                    <input type="datetime-local" id="inicio"
+                           @bind=oEvento.FechaHoraInicio @bind:format="yyyy-MM-ddTHH:mm" min="2022-03-01T08:30" />
+                    <ValidationMessage For="() => oEvento.FechaHoraInicio" />
+                </div>
+                <div class="col-md-6 form-group item-form">
+                    <label for="fechaFin">Fecha y hora de fin</label>
+                    <input @bind=oEvento.FechaHoraFin @bind:format="yyyy-MM-ddTHH:mm" type="datetime-local" min="2022-03-01T08:30" />
+                    <ValidationMessage For="() => oEvento.FechaHoraFin" />
+                </div>
+
+            </div>
+            <div class="row" hidden>
+                <div class="col-md-12 form-group item-form">
+                    <label for="areaPatrocinante">Area patrocinante</label>
+
+                </div>
+            </div>
+            <div class="row">
+                <div class="col-md-4 form-group item-form">
+                    <label for="cupo">Cupo</label>
+                    <InputNumber class="form-control" @bind-Value="oEvento.Cupo"></InputNumber>
+                    <ValidationMessage For="() => oEvento.Cupo" />
+                </div>
+                @*   </div>
+                    <div class="row">*@
+                <div class="col-md-4 form-group item-form">
+                    <label for="tipo">Tipo</label>
+                    <InputSelect class="form-control" @bind-Value="oEvento.TipoEvento">
+                        <option value="Masiva">Masiva</option>
+                        <option value="Mixta">Mixta</option>
+                        <option selected value="Personalizada">Personalizada</option>
+                    </InputSelect>
+                    <ValidationMessage For="() => oEvento.TipoEvento" />
+                </div>
+                @*   </div>
+                    <div class="row">*@
+                <div class="col-md-4 form-group item-form">
+                    <label for="estado">Estado</label>
+                    <InputSelect class="form-control" @bind-Value="oEvento.IdEstado">
+                        @foreach (var Estado in Estados)
+                        {
+                            if (oEvento.IdEstado == Estado.Id)
+                            {
+                                <option selected value="@Estado.Id">@Estado.Nombre</option>
+                            }
+                            else
+                            {
+                                <option value="@Estado.Id">@Estado.Nombre</option>
+                            }
+                        }
+                    </InputSelect>
+                </div>
+            </div>
+
+            <div class="row">
+                <div class="col-md-8">
+                </div>
+                <div class="col-sm-6 col-md-2">
+                    <button class="btn btn-primary btn-block" @onclick="Save"> Guardar </button>
+                </div>
+                <div class="col-sm-6 col-md-2">
+                    <button class="btn btn-danger btn-block" @onclick="Cancelar"> Cancelar </button>
+                </div>
+            </div>
+        </fieldset>
+        <asp:Button ID="btnWrite" Text="Write Cookie" runat="server" OnClick="WriteCookie" />
+
+    </EditForm>
+</div>
+
+
+@code {
+    [Parameter]
+    public int Id { get; set; }
+    public string accion { get; set; }
+    public bool boolvalue { get; set; }
+    public bool presencial { get; set; } = true;
+    public bool virtualC { get; set; } = true;
+    public bool streaming { get; set; } = true;
+    public bool virtualOStreaming { get; set; } = true;
+
+    public string seleccionado { get; set; }
+    public string FlyerEvento { get; set; } = "";
+    public string PortadaEvento { get; set; } = "";
+
+    string nombrePresencial = "Presencial";
+    string nombreVirtual = "Virtual";
+    string nombreStreaming = "Streaming";
+
+    public string nombrePortada { get; set; }
+    public string nombreFlyer { get; set; }
+    public int cantCaracteres { get; set; } = 256;
+
+    public IConfigurationRoot root;
+
+    Evento oEvento = new Evento();
+    LoggerManger logger = new LoggerManger();
+    public List<Invitacion> Invitacion { get; set; } = new List<Invitacion>();
+    public List<Plataforma> Plataformas { get; set; } = new List<Plataforma>();
+    public List<Ubicacion> Ubicaciones { get; set; } = new List<Ubicacion>();
+    public List<Persona> Disertantes { get; set; } = new List<Persona>();
+    public List<Organismo> Organismo { get; set; } = new List<Organismo>();
+    public List<Estado> Estados { get; set; } = new List<Estado>();
+    private List<Persona> Persona { get; set; } = new List<Persona>();
+    public List<Formato> FormatosSelected = new List<Formato>();
+    public List<Persona> lstEventoCancelado { get; set; } = new List<Persona>();
+    public bool Spinner { get; set; } = false;
+    Respuesta<Object> oRespuesta = new Respuesta<Object>();
+    Respuesta<Evento> oRespuestaEvento = new Respuesta<Evento>();
+    public Respuesta<List<Plataforma>> oRespuestaPlataforma = new Respuesta<List<Plataforma>>();
+    public Respuesta<List<Ubicacion>> oRespuestaUbicacion = new Respuesta<List<Ubicacion>>();
+    public Respuesta<List<Persona>> oRespuestaDisertante = new Respuesta<List<Persona>>();
+    public Respuesta<List<Organismo>> oRespuestaOrganismo = new Respuesta<List<Organismo>>();
+    public Respuesta<List<Estado>> oRespuestaEstado = new Respuesta<List<Estado>>();
+    public Respuesta<List<Invitacion>> oRespuestaInvitaciones = new Respuesta<List<Invitacion>>();
+    public Respuesta<EventoParticipante> oRespuestaEventoParticipante = new Respuesta<EventoParticipante>();
+    public Respuesta<List<Invitacion>> oRespuestaLstPersInvitadas = new Respuesta<List<Invitacion>>();
+
+
+    public Respuesta<Archivo> oRespuestaArchivo = new Respuesta<Archivo>();
+
+    public string Url = "/api/evento";
+    public string UrlArchivo = "/api/archivos";
+    public string UrlPlataforma = "/api/plataforma";
+    public string UrlEstado = "/api/estado";
+    public string UrlUbicacion = "/api/ubicacion";
+    public string UrlPersona = "/api/persona";
+    public string UrlOrganismo = "/api/organismo";
+    public string UrlInvitacion = "/api/invitacion";
+    public string UrlEventoParticipante = "/api/eventoparticipante";
+    string[] tiposPrograma = { "pdf", "doc" };
+    string[] tipoFlyer = { "jpg", "bmp", "gif" };
+    bool firstRenderFlag = false;
+    private string mensajeDescripcion { get; set; } = "";
+    private string Message { get; set; } = "";
+    public string EstadoId { get; set; }
+    IFileListEntry file;
+
+    private string normalizeFileName(string nombre)
+    {
+        string[] extension = nombre.Split(".");
+
+        extension[0] = Regex.Replace(extension[0].Normalize(NormalizationForm.FormD), @"[^a-zA-z0-9 ]+", "0");
+
+        extension[0] = extension[0].Replace(" ", "0");
+
+        return extension[0] + "." + extension[1];
+    }
+
+
+    async Task SubirArchivo(IFileListEntry[] files)
+    {
+        var root = FuncionesBasicas.getAppSettings();
+
+        //QUITAR TILDES O CARACTERES ESPECIALES A LOS ARCHIVOS PARA QUE SE ADJUNTEN
+
+        try
+        {
+
+            IFileListEntry file = files.FirstOrDefault();
+            string nombreArchivo = file.Name.ToString();
+            string[] extension = file.Name.Split(".");
+
+            nombreArchivo = normalizeFileName(nombreArchivo);
+
+            var nombreTemporal = root.GetSection("DVArchivos")["EventosCeremonial"] + "/Temporales/Otros/" + nombreArchivo;
+
+
+            if (FileUpload.TipoArchivoValido(tiposPrograma, nombreArchivo) == true)
+            {
+                if (File.Exists(nombreTemporal))
+                {
+
+                    nombreArchivo = DateTime.Now.ToString("HHmmss") + nombreArchivo;
+
+                }
+
+                if (oEvento.RutaPrograma != null && oEvento.RutaPrograma != "")
+                {
+                    await EditarRutaPrograma(oEvento.RutaPrograma, file, "programa", nombreArchivo);
+
+                    if (File.Exists(nombreTemporal))
+                    {
+
+                        oEvento.RutaPrograma = nombreArchivo;
+
+                    }
+
+                }
+                else
+                {
+                    try
+                    {
+                        //new form no tenia programa
+
+                        await guardarNuevoArchivoEnTemporal(file, nombreArchivo, "");
+
+                        nombreTemporal = root.GetSection("DVArchivos")["EventosCeremonial"] + "/Temporales/Otros/" + nombreArchivo;
+
+                        if (File.Exists(nombreTemporal) == true)
+                        {
+                            oEvento.RutaPrograma = nombreArchivo;
+                        }
+
+                    }
+                    catch (Exception e)
+                    {
+
+                        oEvento.RutaPrograma = "";
+                        string mensaje = "Error en carga de archico";
+
+                        await js.InvokeVoidAsync("alert", mensaje);
+                        logger.LogError(mensaje + nombreTemporal, e);
+
+                    }
+                }
+
+            }
+            else
+            {
+                string mensaje = "El archivo seleccionado no está en un formato aceptable";
+                await js.InvokeVoidAsync("alert", mensaje);
+            }
+
+
+        }
+        catch (Exception e)
+        {
+
+            logger.LogError("Error en SubirArchivo", e);
+
+        }
+
+    }
+    async Task SubirFlyer(IFileListEntry[] files)
+    {
+        try
+        {
+
+            IFileListEntry file = files.FirstOrDefault();
+            string nombreArchivo = file.Name.ToString();
+            string[] extension = file.Name.Split(".");
+            var root = FuncionesBasicas.getAppSettings();
+
+            //QUITAR TILDES O CARACTERES ESPECIALES A LOS ARCHIVOS PARA QUE SE ADJUNTEN
+
+            nombreArchivo = normalizeFileName(nombreArchivo);
+
+            await js.InvokeVoidAsync("alert", nombreArchivo);
+
+            if (file == null)
+            {
+
+                return;
+
+            }
+            if (nombreFlyer == nombreArchivo)
+            {
+                //hay dos archivos iguales, cambiar nombre
+                nombreArchivo = DateTime.Now.ToString("HHmmss") + nombreArchivo;
+
+            }
+
+            if (FileUpload.TipoArchivoValido(tipoFlyer, nombreArchivo) == true)
+            {
+
+                var nombreTemporal = root.GetSection("DVArchivos")["EventosCeremonial"] + "/Temporales/Flyers/" + nombreFlyer;
+
+
+                if (File.Exists(nombreTemporal))//TENGO QUE VALIDAR EL ARCHIVO QUE O
+                {
+
+                    nombreArchivo = DateTime.Now.ToString("HHmmss") + nombreArchivo;
+
+                }
+                if (Id == 0)
+                {
+
+                    await NuevoArchivoTemporalEnElNew(FlyerEvento, nombreArchivo, extension, nombreArchivo, file);
+
+
+                    nombreTemporal = root.GetSection("DVArchivos")["EventosCeremonial"] + "/Temporales/Flyers/" + nombreArchivo;
+
+
+                    if (File.Exists(nombreTemporal))//TENGO QUE VALIDAR QUE EL ARCHIVO HAYA SIDO GUARDADO
+                    {
+                        //SI SE GUARDO ARCHIVO NUEVO EN EL NEW
+                        nombreFlyer = nombreArchivo;
+                    }
+                    else
+                    {
+
+                        //SI NO SE GUARDO MUESTRO ERROR
+                        logger.LogError("No se guardo archivo en NuevoArchivoTemporalEnElNew" + nombreTemporal);
+
+                    }
+
+                }
+
+                if (Id != 0)
+                {
+
+
+                    try
+                    {
+                        //await fileUpload.borrarArchivosEnTemporales(nombreFlyer, "flyer");
+
+                        await guardarNuevoArchivoEnTemporal(file, nombreArchivo, "flyer");
+
+                        string localwwwrootFlyer = root.GetSection("DVArchivos")["EventosCeremonial"] + "Temporales/Flyers/" + nombreArchivo;
+
+                        if (!File.Exists(localwwwrootFlyer))
+                        {
+
+                            logger.LogError("No se guardo archivo en EditarRutaPrograma" + localwwwrootFlyer);
+                            //aparece Error si no se guardo
+
+                        }
+                        else
+                        {
+                            //SI SE GUARDO ARCHIVO NUEVO EN EL EDIT
+                            nombreFlyer = nombreArchivo;
+
+                        }
+
+
+
+                    }
+                    catch (Exception e)
+                    {
+
+                        logger.LogError("Error SubirFlyer", e);
+
+                    }
+
+                }
+            }
+            else
+            {
+                logger.LogError("El archivo seleccionado no tiene formato de imágen");
+
+                string mensaje = "El archivo seleccionado no tiene formato de imágen";
+                await js.InvokeVoidAsync("alert", mensaje);
+            }
+
+        }
+        catch (Exception e)
+        {
+
+            logger.LogError("Error en SubirFlyer", e);
+
+
+        }
+
+
+
+    }
+    private async Task NuevoArchivoTemporalEnElNew(string campoForm, string nombreTemporalArchivo, string[] extension, string nombreArchivo, IFileListEntry file)
+    {
+
+        var root = FuncionesBasicas.getAppSettings();
+
+        try
+        {
+
+            var nombreTemporal = root.GetSection("DVArchivos")["EventosCeremonial"] + "/Temporales/Flyers/" + nombreTemporalArchivo;
+
+            await guardarNuevoArchivoEnTemporal(file, nombreTemporalArchivo, "flyer");
+
+
+            string localwwwroot = root.GetSection("DVArchivos")["EventosCeremonial"] + "/Temporales/Flyers/" + nombreTemporalArchivo;
+
+            if (!File.Exists(localwwwroot))
+            {
+                logger.LogError("No se guardo archivo en NuevoArchivoTemporalEnElNew");
+
+            }
+        }
+        catch (Exception e)
+        {
+
+            logger.LogError("Error NuevoArchivoTemporalEnElNew", e);
+
+        }
+
+    }
+    async Task SubirPortada(IFileListEntry[] files)
+    {
+        try
+        {
+            IFileListEntry file = files.FirstOrDefault();
+            string nombreArchivo = file.Name.ToString();
+            string[] extension = file.Name.Split(".");
+
+            var root = FuncionesBasicas.getAppSettings();
+
+            //QUITAR TILDES O CARACTERES ESPECIALES A LOS ARCHIVOS PARA QUE SE ADJUNTEN
+            nombreArchivo = normalizeFileName(nombreArchivo);
+            await js.InvokeVoidAsync("alert", nombreArchivo);
+
+
+            if (file == null)
+            {
+
+                return;
+
+            }
+            //LAS PORTADAS PUEDEN ESTAR DENTRO DE LA CARPETA PORTADASY DENTRO DE LA CARPETA FOTOS INDEX
+            var nombreTemporal = root.GetSection("DVArchivos")["EventosCeremonial"] + "/Temporales/Portadas/" + nombreArchivo;
+
+            var nombrePortadas = root.GetSection("DVArchivos")["EventosCeremonial"] + "/FotosIndex/" + nombreArchivo;
+
+
+            if (File.Exists(nombreTemporal) || File.Exists(nombreTemporal))
+            {
+                nombreArchivo = DateTime.Now.ToString("HHmmss") + nombreArchivo;
+
+            }
+
+            //if (nombrePortada == nombreArchivo)
+            //{
+            //    //hay dos archivos iguales, cambiar nombre
+            //    nombreArchivo = DateTime.Now.ToString("HHmmss") + nombreArchivo;
+
+            //}
+
+
+            if (FileUpload.TipoArchivoValido(tipoFlyer, nombreArchivo) == true)
+            {
+                if (Id == 0)
+                {
+                    //if (nombrePortada != "")
+                    //{
+                    //    //await fileUpload.borrarArchivosEnTemporales(nombrePortada, "portada");
+
+                    //}
+
+                    await guardarNuevoArchivoEnTemporal(file, nombreArchivo, "portada");
+
+
+                    //UNA VEZ QUE LO GUARDO, COMPRUEBA QUE ESTE EN LA CARPETA. DE LO CONTRARIO MUESTRA EL ERROR
+                    if (File.Exists(nombreTemporal))
+                    {
+                        nombrePortada = nombreArchivo;
+                    }
+                    else
+                    {
+
+                        logger.LogError("no se guardo archivo en SubirPortada");
+
+                    }
+
+                }
+                if (Id != 0)
+                {
+
+                    try
+                    {
+
+                        if (nombrePortada != null && nombrePortada != "")
+                        //cambiar por la variable de flyer
+                        {
+
+                            //await fileUpload.borrarArchivosEnTemporales(nombrePortada, "portada");
+
+                            if (File.Exists(nombrePortada) == false)
+                            {
+                                if (nombrePortada == nombreArchivo)
+                                {
+                                    //hay dos archivos iguales, cambiar nombre
+                                    nombreArchivo = DateTime.Now.ToString("HHmmss") + nombreArchivo;
+
+                                }
+
+                                await EditarRutaPrograma(nombrePortada, file, "portada", nombreArchivo);
+
+                                //COMPRUEBA QUE ESTE DENTRO DEL DIRECTORIO VIRTUAL. DE LO CONTRARIO MUESTRA EL ERROR
+                                if (File.Exists(nombreTemporal))
+                                {
+                                    nombrePortada = nombreArchivo;
+                                }
+
+                                //entro por edit tenia cargado programa
+
+                            }
+                        }
+                        else
+                        {
+
+                            try
+                            {
+
+                                //new form no tenia programa
+
+                                await guardarNuevoArchivoEnTemporal(file, nombreArchivo, "portada");
+
+                                nombreTemporal = root.GetSection("DVArchivos")["EventosCeremonial"] + "/Temporales/Portadas/" + nombreArchivo;
+
+                                if (File.Exists(nombreTemporal) == true)
+                                {
+                                    nombrePortada = nombreArchivo;
+                                }
+
+                            }
+
+                            catch (Exception e)
+                            {
+
+                                string mensaje = "Error en carga de archico";
+
+                                await js.InvokeVoidAsync("alert", mensaje);
+                                logger.LogError(mensaje, e);
+
+
+                            }
+                        }
+
+                    }
+                    catch (Exception e)
+                    {
+
+                        logger.LogError("Error SubirPortada", e);
+
+                    }
+
+                }
+            }
+
+            else
+            {
+                logger.LogError("El archivo seleccionado no tiene formato de imágen");
+
+                string mensaje = "El archivo seleccionado no tiene formato de imágen";
+                await js.InvokeVoidAsync("alert", mensaje);
+            }
+
+
+        }
+        catch (Exception e)
+        {
+            logger.LogError("Error en SubirPortada", e);
+
+        }
+    }
+
+
+    protected async Task ClickEnFormato()
+    {
+        if (Id != 0)
+        {
+            await js.InvokeVoidAsync("editFormFormato", oEvento.Formato);
+
+        }
+    }
+    async Task ClickCheckPresencial()
+    {
+
+        await js.InvokeVoidAsync("checkOutPresencial");
+
+    }
+    async Task ClickCheckVirtualC()
+    {
+
+        await js.InvokeVoidAsync("checkOutVirtualC");
+
+    }
+
+    async Task ClickCheckStreaming()
+    {
+
+        await js.InvokeVoidAsync("checkOutStreaming");
+
+    }
+
+    private async Task Cancelar()
+    {
+        NavigationManager.NavigateTo("/evento", true);
+    }
+    private void LimpiarCamposSinUsar()
+    {
+        if (oEvento.Formato != "Virtual")
+        {
+            oEvento.IdPlataforma = null;
+            oEvento.IdReunionVirtual = null;
+            oEvento.Password = null;
+
+        }
+
+        if (oEvento.Formato != "Streaming" && oEvento.Formato != "Virtual")
+        {
+
+            oEvento.URL = null;
+        }
+
+        if (oEvento.Formato != "Presencial")
+        {
+            oEvento.IdUbicacion = null;
+
+        }
+
+    }
+
+    private async Task guardarNuevoArchivoEnTemporal(IFileListEntry file, string nombre, string tipo)
+    {
+        try
+        {
+            await fileUpload.UploadAsyncNewTempFile(file, nombre, tipo);
+
+            string mensaje = "Se cargo el archivo exitosamente";
+
+            await js.InvokeVoidAsync("alert", mensaje);
+
+        }
+        catch (Exception e)
+        {
+
+            logger.LogError("guardarNuevoArchivoEnTemporal", e);
+
+        }
+
+
+    }
+    private async Task EditarRutaPrograma(string rutaAntigua, IFileListEntry file, string tipo, string nombreArchivo)
+    {
+        var root = FuncionesBasicas.getAppSettings();
+
+
+        try
+        {
+
+            if (tipo == "portada")
+            {
+
+
+                await guardarNuevoArchivoEnTemporal(file, nombreArchivo, "portada");
+                string localwwwrootPortada = root.GetSection("DVArchivos")["EventosCeremonial"] + "/Temporales/Portadas/" + nombreArchivo;
+                if (!File.Exists(localwwwrootPortada))
+                {
+
+                    logger.LogError("No se guardo archivo en EditarRutaPrograma");
+
+                }
+
+            }
+            if (tipo == "programa")
+            {
+
+
+                await guardarNuevoArchivoEnTemporal(file, nombreArchivo, "programa");
+                string localwwwrootPortada = root.GetSection("DVArchivos")["EventosCeremonial"] + "/Temporales/" + nombreArchivo;
+                if (!File.Exists(localwwwrootPortada))
+                {
+
+                    logger.LogError("No se guardo archivo en EditarRutaPrograma");
+
+
+                }
+            }
+
+
+        }
+        catch (Exception e)
+        {
+            logger.LogError("Error en el borrado de Archivos", e);
+            await js.InvokeVoidAsync("alert", "Error en el borrado de Archivos");
+
+        }
+
+    }
+
+    private Archivo crearObjetoArchivo(string id, Evento oEvento)
+    {
+        var root = FuncionesBasicas.getAppSettings();
+
+        Archivo modelo = new Archivo();
+        try
+        {
+            using (var ms = new MemoryStream())
+            {
+
+                modelo.NombrePrograma = oEvento.RutaPrograma;
+
+
+                if (oEvento.RutaPrograma != null)
+                {
+                    string path = root.GetSection("DVArchivos")["EventosCeremonial"] + "/Temporales/Otros/" + oEvento.RutaPrograma;
+
+                    using (FileStream fs = File.OpenRead(path))
+                    {
+                        fs.CopyTo(ms);
+                        modelo.Programa = ms.ToArray();
+
+                    }
+                }
+
+
+                string path2 = root.GetSection("DVArchivos")["EventosCeremonial"] + "/Temporales/Flyers/" + nombreFlyer;
+                modelo.NombreFlyer = nombreFlyer;
+
+                if (File.Exists(path2))
+                {
+                    ms.Position = 0;
+
+                    using (FileStream fs = File.OpenRead(path2))
+                    {
+                        fs.CopyTo(ms);
+                        modelo.Flyer = ms.ToArray();
+
+                    }
+                }
+
+
+                string path3 = root.GetSection("DVArchivos")["EventosCeremonial"] + "/Temporales/Portadas/" + nombrePortada;
+                modelo.NombrePortada = nombrePortada;
+
+                if (File.Exists(path3))
+                {
+                    ms.Position = 0;
+
+                    using (FileStream fs = File.OpenRead(path3))
+                    {
+                        fs.CopyTo(ms);
+                        modelo.Portada = ms.ToArray();
+
+                    }
+                }
+                modelo.Temporales = Int32.Parse(id);
+
+            }
+
+        }
+        catch (Exception e)
+        {
+            logger.LogError("Error en el crearObjetoArchivo", e);
+
+
+        }
+        return modelo;
+
+
+    }
+
+
+    protected override void OnAfterRender(bool firstRender)
+    {
+        try
+        {
+            if (firstRender == false)
+            {
+                if (firstRenderFlag == false)
+                {
+
+                    js.InvokeVoidAsync("editFormFormato", oEvento.Formato);
+
+                    firstRenderFlag = true;
+                    js.InvokeVoidAsync("checkBrowser");
+
+                    js.InvokeVoidAsync("cambiarCantidadCaracteres");
+                    js.InvokeVoidAsync("cambiarCantidadTitulo");
+
+
+
+                }
+
+            }
+        }
+        catch (Exception ex)
+        {
+            logger.LogError("Error en  firt render forms", ex);
+        }
+
+
+    }
+
+
+    protected override async Task OnInitializedAsync()
+    {
+
+
+        try
+        {
+
+            oRespuestaPlataforma = await Http.GetFromJsonAsync<Respuesta<List<Plataforma>>>(UrlPlataforma);
+            Plataformas = oRespuestaPlataforma.Data;
+            oRespuestaEstado = await Http.GetFromJsonAsync<Respuesta<List<Estado>>>(UrlEstado);
+            Estados = oRespuestaEstado.Data;
+            oRespuestaUbicacion = await Http.GetFromJsonAsync<Respuesta<List<Ubicacion>>>(UrlUbicacion);
+            Ubicaciones = oRespuestaUbicacion.Data;
+            oRespuestaDisertante = await Http.GetFromJsonAsync<Respuesta<List<Persona>>>(UrlPersona);
+            Disertantes = oRespuestaDisertante.Data;
+            oRespuestaOrganismo = await Http.GetFromJsonAsync<Respuesta<List<Organismo>>>(UrlOrganismo);
+            Organismo = oRespuestaOrganismo.Data;
+
+            Persona = Disertantes;
+        }
+        catch (Exception e)
+        {
+            logger.LogError("OnInitializedAsync eventos", e);
+
+        }
+
+        try
+        {
+            if (Id != 0)
+            {
+                oRespuestaEvento = await Http.GetFromJsonAsync<Respuesta<Evento>>(Url + "/" + Id);
+
+                oEvento = oRespuestaEvento.Data;
+
+                var oRespuestaArchivo = await Http.GetFromJsonAsync<Respuesta<Archivo>>(UrlArchivo + "/" + Id);
+
+
+
+                if (oRespuestaArchivo.Data != null)
+                {
+
+                    //TRAIGO EL FLYER DE LA BASE DE DATOS SI SE ENCUENTRA ALLI
+
+                    await traerFlyerAlDV(oRespuestaArchivo.Data);
+
+                    //TRAIGO LA PORTADA DE LA BASE DE DATOS SI SE ENCUENTRA ALLI
+
+                    await traerPortadaAlDV(oRespuestaArchivo.Data);
+
+
+                    //TRAIGO EL PROGRAMA DE LA BASE DE DATOS SI SE ENCUENTRA ALLI
+
+                    await traerProgramaAlDV(oRespuestaArchivo.Data);
+
+
+
+                }
+
+                //if (File.Exists(nombreCompleto.Trim()))
+                //{
+                //    FlyerEvento = nombreCompleto;
+                //}
+
+                if (oEvento.Formato == "Presencial")
+                {
+
+                    presencial = false;
+
+                }
+
+                if (oEvento.Formato == "Streaming")
+                {
+
+                    streaming = false;
+                    virtualOStreaming = false;
+
+
+                }
+                if (oEvento.Formato == "Virtual")
+                {
+
+                    virtualC = false;
+                    virtualOStreaming = false;
+
+                }
+
+                oRespuestaInvitaciones = await Http.GetFromJsonAsync<Respuesta<List<Invitacion>>>(UrlInvitacion + "/" + oEvento.Id.ToString());
+                oEvento.Invitacions = oRespuestaInvitaciones.Data;
+                accion = "Editar";
+                //getSetedFormatos();
+            }
+            else
+            {
+                var response = await Http.PostAsJsonAsync<Evento>(Url, oEvento);
+                oRespuesta = response.Content.ReadFromJsonAsync<Respuesta<Object>>().Result;
+            }
+
+        }
+        catch (Exception e)
+        {
+            logger.LogError("OnInitializedAsync eventos edit", e);
+
+        }
+
+
+    }
+
+
+    public async Task traerFlyerAlDV(Archivo flyer)
+    {
+        var root = FuncionesBasicas.getAppSettings();
+
+
+        if (flyer.NombreFlyer != null)
+        {
+
+            nombreFlyer = flyer.NombreFlyer;
+
+            string path = root.GetSection("DVArchivos")["EventosCeremonial"] + "/Temporales/Flyers/" + nombreFlyer;
+
+            if (!File.Exists(path))
+            {
+
+                MemoryStream m = new MemoryStream(flyer.Flyer);
+
+                using (System.IO.FileStream fileStream = new FileStream(path, FileMode.Create, FileAccess.Write))
+                {
+
+                    m.WriteTo(fileStream);
+
+                }
+
+            }
+        }
+
+
+    }
+
+
+    public async Task traerProgramaAlDV(Archivo programa)
+    {
+        var root = FuncionesBasicas.getAppSettings();
+
+        if (programa.NombrePrograma != null)
+        {
+
+            oEvento.RutaPrograma = programa.NombrePrograma;
+            string path = root.GetSection("DVArchivos")["EventosCeremonial"] + "/Temporales/Otros/" + oEvento.RutaPrograma;
+
+            if (!File.Exists(path))
+            {
+
+                MemoryStream m = new MemoryStream(programa.Programa);
+
+                using (System.IO.FileStream fileStream = new FileStream(path, FileMode.Create, FileAccess.Write))
+                {
+
+                    m.WriteTo(fileStream);
+
+                }
+            }
+        }
+
+    }
+
+
+
+
+
+    public async Task traerPortadaAlDV(Archivo portada)
+    {
+        var root = FuncionesBasicas.getAppSettings();
+
+        if (portada.NombrePortada != null)
+        {
+            nombrePortada = portada.NombrePortada;
+            string path = root.GetSection("DVArchivos")["EventosCeremonial"] + "/Temporales/Portadas/" + nombrePortada;
+
+            if (!File.Exists(path))
+            {
+
+                MemoryStream m = new MemoryStream(portada.Portada);
+
+                using (System.IO.FileStream fileStream = new FileStream(path, FileMode.Create, FileAccess.Write))
+                {
+
+                    m.WriteTo(fileStream);
+                }
+            }
+
+        }
+
+
+    }
+
+    private void getSetedFormatos()
+    {
+
+        try
+        {
+
+            if (oEvento.Formato.Contains("Virtual") == true)
+            {
+                virtualC = true;
+            }
+            if (oEvento.Formato.Contains("Presencial") == true)
+            {
+                presencial = true;
+
+            }
+            if (oEvento.Formato.Contains("Streaming") == true)
+            {
+                streaming = true;
+            }
+
+        }
+        catch (Exception e)
+        {
+            logger.LogError("getSetedFormatos", e);
+
+        }
+    }
+
+    private async Task Save()
+    {
+        try
+        {
+            //REALIZA LAS VALIDACIONES NECESARIAS ANTES DE GUARDAR, SI NO PASA LA VALIDACION MUESTRA UN ALERT Y RETORNA FALSE, NO SE GUARDA EL FORMULARIO
+            string interopResult = await js.InvokeAsync<string>("ingresarFormato");
+            oEvento.Formato = interopResult;
+
+            if (oEvento.Formato == "")
+            {
+
+                await js.InvokeVoidAsync("alert", "Debe seleccionar un formato para el evento");
+
+                return;
+            }
+            if (oEvento.Formato.Contains("Presencial") && oEvento.IdUbicacion == null)
+            {
+
+                await js.InvokeVoidAsync("alert", "Debe seleccionar una ubicación para el evento");
+
+                return;
+            }
+            if (oEvento.FechaHoraInicio == null || oEvento.FechaHoraFin == null)
+            {
+
+                await js.InvokeVoidAsync("alert", "Debe seleccionar una fecha de inicio y de fin para el evento");
+
+                return;
+            }
+            if (oEvento.IdEstado == 0 || oEvento.IdEstado == 1)
+            {
+
+                DateTime today = DateTime.Now;
+                if (oEvento.FechaHoraInicio < today || oEvento.FechaHoraFin < today ||
+                oEvento.FechaHoraInicio > oEvento.FechaHoraFin)
+                {
+                    await js.InvokeVoidAsync("alert", "Se encontró un Error en las fechas del evento. Verifique que las fechas sean posteriores al " + today.ToShortDateString());
+                    return;
+
+                }
+                if (oEvento.FechaHoraInicio.Value.ToShortDateString() != oEvento.FechaHoraFin.Value.ToShortDateString())
+                {
+                    await js.InvokeVoidAsync("alert", "El evento debe comenzar y finalizar el mismo día");
+                    return;
+
+                }
+
+            }
+
+
+            if (oEvento.Descripcion != null)
+            {
+
+
+                if (oEvento.Descripcion.Count() > 200 || oEvento.Descripcion.Count() == 0)
+                {
+                    await js.InvokeVoidAsync("alert", "Error en la descripción, supera la cantidad de caracteres permitidos o el campo esta vacio");
+
+                    return;
+                }
+
+            }
+            else
+            {
+
+                await js.InvokeVoidAsync("alert", "Error en la descripción, el campo esta vacio");
+
+                return;
+
+            }
+
+            if (oEvento.Agenda != null)
+            {
+                if (oEvento.Agenda.Count() > 3999)
+                {
+                    await js.InvokeVoidAsync("alert", "Error en la agenda, supera la cantidad de caracteres permitidos. Max 4000");
+
+                    return;
+                }
+            }
+
+
+            if (oEvento.Nombre != null)
+            {
+
+                if (oEvento.Nombre.Count() >= 150 || oEvento.Nombre.Count() == 0)
+                {
+
+                    await js.InvokeVoidAsync("alert", "Error en el título, supera la cantidad de caracteres permitidos o el campo está vacío");
+
+                    return;
+                }
+                else
+                {
+
+                    if (oEvento.Nombre == "")
+                    {
+
+                        await js.InvokeVoidAsync("alert", "Error en el título, el campo está vacío");
+
+                        return;
+                    }
+                }
+
+            }
+            else
+            {
+
+                await js.InvokeVoidAsync("alert", "Error en el título, el campo está vacío");
+
+                return;
+
+            }
+
+
+
+
+            //SECCION GUARDADO DE EVENTO
+            if (oEvento.Id != 0)
+            {
+                if (oEvento.IdEstado == 3)
+                {
+                    //EL EVENTO VA A A SER CANCELADO
+
+                    await CancelarEvento();
+                }
+                else
+                {
+                    LimpiarCamposSinUsar();
+
+                    await GuardarNuevoEvento();
+
+                }
+            }
+            else
+            {
+
+                await GuardarEditEvento();
+            }
+
+        }
+        catch (Exception ex)
+        {
+            logger.LogError("Error en  save", ex);
+        }
+    }
+
+    public async Task traerCorreosParaCancelado()
+    {
+
+        oRespuestaLstPersInvitadas = await Http.GetFromJsonAsync<Respuesta<List<Invitacion>>>(UrlPersona + "/TraerPersonasInvitadas/" + Id);
+
+        foreach (var invitado in oRespuestaLstPersInvitadas.Data)
+        {
+
+            var oRespuestaEventoPart = await Http.GetFromJsonAsync<Respuesta<EventoParticipante>>(UrlEventoParticipante + "/" + invitado.Id);
+            if (oRespuestaEventoPart.Data != null)
+            {
+                if (oRespuestaEventoPart.Data.EstadodeInscripcion != "" && oRespuestaEventoPart.Data.EstadodeInscripcion != "No aceptado")
+                {
+                    var oRespuestaPersonaInvitada = await Http.GetFromJsonAsync<Respuesta<Persona>>(UrlPersona + "/" + oRespuestaEventoPart.Data.IdPersona);
+
+                    lstEventoCancelado.Add(oRespuestaPersonaInvitada.Data);
+
+                }
+
+            }
+
+        }
+    }
+    private async Task CancelarEvento()
+    {
+
+
+        try
+        {
+
+            MailRequest listaCancelado = new MailRequest();
+            listaCancelado.emailEvento = oEvento;
+
+            await traerCorreosParaCancelado();
+            if (lstEventoCancelado.Count() > 0)
+            {
+                await js.InvokeVoidAsync("alert", "Se encontraron invitados al evento. Aguarde en el sitio hasta que se envíen todos los correos.");
+            }
+
+            listaCancelado.emailPersonas = lstEventoCancelado;
+
+            await Http.PostAsJsonAsync<MailRequest>(UrlInvitacion + "/EnviarCorreosCancelado", listaCancelado);
+
+            var response = await Http.PutAsJsonAsync<Evento>(Url + "/AgregarNuevoEvento", oEvento);
+
+            NavigationManager.NavigateTo("/evento", true);
+
+        }
+        catch (Exception e)
+        {
+
+            logger.LogError("Error en  Cancelar evento", e);
+
+
+        }
+
+
+    }
+    private async Task GuardarEditEvento()
+    {
+        try
+        {
+            var response = await Http.PostAsJsonAsync<Evento>(Url, oEvento);
+            var task = response.Content.ReadAsStringAsync();
+
+            var r = await task;
+            var id = FuncionesBasicas.RetornarIdDeResponse(r);
+            if (id != null)
+            {
+
+                Archivo modelo = crearObjetoArchivo(id, oEvento);
+
+                await Http.PostAsJsonAsync<Archivo>(UrlArchivo, modelo);
+
+            }
+            NavigationManager.NavigateTo("/evento", true);
+
+
+        }
+        catch (Exception ex)
+        {
+            await js.InvokeVoidAsync("focusById", "txtNombreEvento");
+
+            logger.LogError("Error en editar evento", ex);
+        }
+
+    }
+
+    private async Task GuardarNuevoEvento()
+    {
+
+
+        try
+        {
+            var response = await Http.PutAsJsonAsync<Evento>(Url + "/AgregarNuevoEvento", oEvento);
+            oRespuesta = response.Content.ReadFromJsonAsync<Respuesta<Object>>().Result;
+            Archivo modelo = crearObjetoArchivo(Id.ToString(), oEvento);
+            await Http.PutAsJsonAsync<Archivo>(UrlArchivo, modelo);
+            NavigationManager.NavigateTo("/evento", true);
+
+        }
+        catch (Exception e)
+        {
+            logger.LogError("Error en Save nuevo evento", e);
+            await js.InvokeVoidAsync("alert", "Error en el guardado");
+
+            return;
+        }
+
+    }
+
+
+
+
+
+
+  }

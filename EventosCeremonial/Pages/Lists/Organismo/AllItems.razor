@@ -1,0 +1,184 @@
+﻿@page "/organismo"
+@attribute [Authorize]
+
+@using System.Net.Http
+@using System.Net.Http.Json
+@using Data
+@using Data.Response
+
+@inject HttpClient Http
+<AuthorizeView Roles="Administrador, Participante, Soporte">
+
+    <br />
+    <br />
+    <center class="panel-pane pane-titulo"><div class="pane-content"><h2 class="activities-sidbar">Organismos</h2></div></center>
+    <br />
+    <br />
+    <div class="row">
+        <div class="col-12 text-left">
+            <a type="button" class="btn btn-primary" href="organismo/form">Nuevo</a>
+        </div>
+    </div>
+
+    <table class="table tabla-condensed table-striped dataTable no-footer  " id="ponchoTable" aria-describedby="ponchoTable_info" role="grid">
+        <thead>
+            <tr role="row">
+                <th class="sorting_asc" tabindex="0" aria-controls="ponchoTable" rowspan="1" colspan="1" aria-sort="ascending" aria-label="Id: Activar para ordenar la columna de manera descendente">
+                    Id
+                </th>
+                <th class="sorting" tabindex="0" aria-controls="ponchoTable" rowspan="1" colspan="1" aria-label="Nombre: Activar para ordenar la columna de manera ascendente">
+                    Nombre
+                </th>
+                <th class="sorting" tabindex="0" aria-controls="ponchoTable" rowspan="1" colspan="1" aria-label="Tipo: Activar para ordenar la columna de manera ascendente">
+                    Tipo
+                </th>
+                <th></th>
+            </tr>
+        </thead>
+        <tbody>
+            @if (listaOrganismos == null)
+            {
+                <tr role="row" class="odd">
+                    <td class="sorting_1" colspan="5">
+                        <p>@textoNoHayRegistros</p>
+                    </td>
+                </tr>
+            }
+            @if (listaOrganismos != null)
+                @foreach (var oElement in listaOrganismos)
+                {
+                    <tr role="row" class="odd">
+                        <td class="sorting_1" data-title="Id">
+                            <p>@oElement.Id</p>
+                        </td>
+                        <td class="" data-title="Nombre">
+                            <p>@oElement.Nombre</p>
+                        </td>
+                        <td class="" data-title="Nombre">
+                            <p>@oElement.TipoOrganismo</p>
+                        </td>
+                        <td>
+                            <a href="/organismo/form/@oElement.Id"><i class="fa fa-edit"></i></a>
+                        </td>
+                        @*  <td>
+                            <a href="/organismo/delete/@oElement.Id"><i class="fa fa-trash"></i></a>
+                            </td>*@
+                    </tr>
+                }
+        </tbody>
+    </table>
+    <nav aria-label="Page navigation example">
+        <ul class="pagination">
+            @for (int i = 1; i <= cantPaginas; i++)
+            {
+                var fila = i;
+                <li class="page-item"><button class="page-link" @onclick="() =>TraerPagina(fila)">@i</button></li>
+            }
+        </ul>
+    </nav>
+</AuthorizeView>
+
+
+@code {
+    public string Url = "/api/organismo";
+    public Respuesta<List<Organismo>> oRespuesta = new Respuesta<List<Organismo>>();
+
+    public Respuesta<List<Organismo>> oRespuestaTemporal = new Respuesta<List<Organismo>>();
+
+    public List<Organismo> listaOrganismos = new List<Organismo>();
+
+    public int cantPaginas { get; set; }
+
+    public int porcion { get; set; } = 10;
+    public string textoNoHayRegistros { get; set; } = "Cargando...";
+
+
+    protected override async Task OnInitializedAsync()
+    {
+        //TRAE LA CANTIDAD DE ELEMENTOS QUE HAY EN LA LISTA ORGANISMOS
+        oRespuestaTemporal = await Http.GetFromJsonAsync<Respuesta<List<Organismo>>>(Url);
+        if (oRespuestaTemporal.Data != null)
+        {
+            if (oRespuestaTemporal.Data.Count() > 0)
+            {
+                int totalFilas = oRespuestaTemporal.Data.Count();
+
+                cantPaginas = totalFilas / porcion;
+
+
+                if (totalFilas % porcion != 0)
+                {
+                    if (totalFilas < porcion)
+                    {
+                        listaOrganismos = oRespuestaTemporal.Data.GetRange(0, totalFilas);
+
+                    }
+                    else
+                    {
+
+
+                        cantPaginas++;
+                        listaOrganismos = oRespuestaTemporal.Data.GetRange(0, porcion);
+
+                    }
+
+                }
+                else
+                {
+
+                    listaOrganismos = oRespuestaTemporal.Data.GetRange(0, porcion);
+
+
+                }
+            }
+        }
+
+
+        else
+        {
+
+            textoNoHayRegistros = "No se encontraron registros";
+            listaOrganismos = null;
+        }
+
+
+
+
+
+    }
+
+    public async Task TraerPagina(int nro)
+    {
+        if (oRespuestaTemporal.Data != null)
+        {
+            if (nro == 1)
+            {
+                listaOrganismos = oRespuestaTemporal.Data.GetRange(0, porcion);
+
+
+            }
+            else
+            {
+                //HACE LA PAGINACION DE LA LISTA
+                int indice = (nro * porcion) - porcion;
+                if (nro == cantPaginas)
+                {
+                    int porcionF = oRespuestaTemporal.Data.Count() - indice;
+
+                    listaOrganismos = oRespuestaTemporal.Data.GetRange(indice, porcionF);
+
+                }
+                else
+                {
+
+                    listaOrganismos = oRespuestaTemporal.Data.GetRange(indice, porcion);
+
+                }
+
+
+            }
+
+        }
+
+    }
+}

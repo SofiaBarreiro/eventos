@@ -1,0 +1,739 @@
+﻿@page "/evento/disp"
+@page "/evento/disp/{Id:int}"
+
+@inject HttpClient Http
+@inject NavigationManager NavigationManager
+@inject IJSRuntime js
+@inject AuthenticationStateProvider AuthenticationStateProvider
+@inject IFileUpload fileUpload
+@inject IHttpContextAccessor httpContextAccessor
+
+@using System.Security.Claims;
+@using Microsoft.AspNetCore.Authentication
+@using Microsoft.AspNetCore.Identity
+@using Microsoft.AspNetCore.Authentication.WsFederation;
+@using Microsoft.AspNetCore.Authentication.Cookies;
+@using Microsoft.AspNetCore.Http;
+@using System.Drawing;
+@using System.Drawing.Imaging;
+@using System.IO;
+@using System.Drawing;
+@using System.Drawing.Imaging;
+@using EventosCeremonial.Data;
+@using System.Diagnostics;
+@using Data
+@using Data.Response
+@using System.Net.Http
+@using System.Net.Http.Json
+@using BlazorBarcodeScanner.ZXing.JS
+@using EventosCeremonial.Components;
+
+<br />
+<br />
+<br />
+<center hidden=@Spinner>
+    <div class="spinner-border" role="status">
+        <span class="sr-only">Loading</span>
+    </div>
+</center>
+
+<center>
+
+
+    <div id="appendModal"></div>
+    <div class="card col-md-8" hidden=@Mostrar>
+        <center>
+
+            @{
+                var root = FuncionesBasicas.getAppSettings();
+
+                string localwwwrootPortada = root.GetSection("DVArchivos")["EventosCeremonial"] + "/Temporales/Portadas/" + nombrePortada;
+
+                if (File.Exists(localwwwrootPortada))
+                {
+                    string urlPortada = Http.BaseAddress.AbsoluteUri + "Archivos/Temporales/Portadas/" + nombrePortada;
+                    <img src="@urlPortada" style="width: 30rem;" class="card-img-top" alt="...">
+
+                }
+            }
+        </center>
+
+        <div class="card-body">
+            @{
+                if (oEvento.Nombre != "")
+                {
+                    <h2 class="card-text">
+
+                        @oEvento.Nombre
+                    </h2>
+                }
+            }
+
+            @{
+                if (oEvento.Descripcion != "")
+                {
+                    <p class="card-text">
+
+                        @oEvento.Descripcion
+                    </p>
+                }
+            }
+            @{
+                if (estadoInscripcion == "Preinscripto" || estadoInscripcion == "Preinscripto I.")
+                {
+                    <button class="btn btn-primary" @onclick="ConfirmarAsistencia" hidden="@EsconderBoton">Confirmar asistencia</button>
+                    <p class="card-text" style="color:red">
+                        @estadoInscripcion  :
+
+                        Cuando su vacante sea confirmada el enviaremos un correo a  @emailPersona
+                    </p>
+                }
+                else
+                {
+                    <button class="btn btn-primary" @onclick="ConfirmarAsistencia" hidden="@EsconderBoton">Confirmar asistencia</button>
+                    <p class="card-text" style="color:red">@estadoInscripcion  </p>
+
+                }
+            }
+
+
+        </div>
+        <ul class="list-group list-group-flush">
+            <li class="list-group-item text-start" style="text-align: start;">Formato:&emsp;@FuncionesBasicas.RecorrerFormatos(oEvento.Formato)</li>
+            <li class="list-group-item text-start" style="text-align: start;">
+                Agenda:&emsp; <br />
+                @{
+
+                    var datos = FuncionesBasicas.recuperarDatosAgenda(oEvento.Agenda);
+                    if (datos != null)
+                    {
+                        foreach (var item in datos)
+                        {
+                            <p>@item</p>
+                        }
+                    }
+                }
+            </li>
+
+            <li class="list-group-item text-start" style="text-align: start;">
+                <div class="row">
+                    <div class="col-6">Comienzo:&emsp;@CorreoElectronico.recuperarFecha(oEvento.FechaHoraInicio)&emsp;&emsp;<i class="fas fa-clock"></i>  @CorreoElectronico.recuperarHora(oEvento.FechaHoraInicio)</div>
+                    <div class="col-6">Finalización:&emsp;@CorreoElectronico.recuperarFecha(oEvento.FechaHoraFin)&emsp;&emsp;<i class="fas fa-clock"></i>  @CorreoElectronico.recuperarHora(oEvento.FechaHoraFin)</div>
+                </div>
+
+            </li>
+
+
+            @* @if (@oEvento.Cupo != null && @oEvento.Cupo != 0)
+                {
+                <li class="list-group-item text-start" style="text-align: start;">Cupo:&emsp;@oEvento.Cupo</li>
+                }
+                else
+                {
+                <li class="list-group-item" style="text-align: start;">Cupo: Sin límite</li>
+                }*@
+            @{
+                if (oEvento.RutaPrograma != null)
+                {
+                    string url = Http.BaseAddress.AbsoluteUri + "Archivos/Temporales/Otros/";
+
+                    string cadena = url + oEvento.RutaPrograma;
+                    <li class="list-group-item" style="text-align: start;"><a href="@cadena" class="card-link" target="_blank">Abrir programa</a></li>
+                }
+
+            }
+            <li class="list-group-item" style="text-align: start;display: none;"></li>
+        </ul>
+        <div class="card-body">
+
+            @{
+
+                string localwwwroot = root.GetSection("DVArchivos")["EventosCeremonial"] + "/Temporales/Flyers/" + nombreFlyer;
+                var retorno = File.Exists(localwwwroot);
+                if (File.Exists(localwwwroot) != false)
+                {
+                    string urlFlyer = Http.BaseAddress.AbsoluteUri + "Archivos/Temporales/Flyers/";
+                    string cadenaFlyer = urlFlyer + nombreFlyer;
+
+                    <div class="card" style="width: 18rem;">
+                        <img src=@cadenaFlyer class="card-img-top" alt="...">
+
+                    </div>
+                }
+
+            }
+        </div>
+
+    </div>
+    <br />
+</center>
+
+
+<AuthorizeView Roles="Administrador, Soporte, Participante">
+    <div class="panel-separator"></div>
+    <div class="panel-pane pane-texto col-md-10" hidden=@Mostrar>
+        <div class="pane-content">
+            <div class="text-right">
+                @{
+                    if (personasYaInvitadas != null)
+                    {
+                        if (personasYaInvitadas.Count() > 0)
+                        {
+                            string urlImprsion = "/persona/vistaimpresion/" + Id.ToString();
+
+                            <a href=@urlImprsion class="btn btn-success p-y-1">Imprimir invitados</a>
+                        }
+                    }
+                }
+                <a href="/evento/" class="btn btn-danger p-y-1" style="margin-left: 10px;">Volver</a>
+
+            </div>
+        </div>
+    </div>
+
+    <br />
+    <br />
+</AuthorizeView>
+<AuthorizeView Roles="Administrador, Soporte, Participante">
+    <center>
+        <div class="card-body col-md-8" style="
+    border: 1px solid #00000020;" hidden=@OcultarQr>
+            <div class="pane-content">
+                <div class="" style="width:fit-content" id="QRCodeStr">
+                </div>
+            </div>
+        </div>
+    </center>
+
+    <br />
+    <br />
+</AuthorizeView>
+<AuthorizeView Roles="Administrador, Soporte">
+
+    <table class="table tabla-condensed table-striped dataTable no-footer  " id="ponchoTable" aria-describedby="ponchoTable_info" role="grid" hidden="@IsShowTabla">
+        <thead>
+            <tr role="row">
+                <th>Nombre</th>
+                <th>Apellido</th>
+                <th>eMail</th>
+                <th>Puesto</th>
+                <th>Organismo</th>
+                <th>Estado</th>
+            </tr>
+        </thead>
+        <tbody>
+            @foreach (var oPersona in personasYaInvitadas)
+            {
+                <tr role="row" class="odd">
+                    <td class="sorting_1" data-title="Id">
+                        <p>@oPersona.Nombre</p>
+                    </td>
+                    <td class="sorting_1" data-title="Id">
+                        <p>@oPersona.Apellido</p>
+                    </td>
+                    <td class="sorting_1" data-title="Id">
+                        <p>@oPersona.MailContacto</p>
+                    </td>
+                    <td class="sorting_1" data-title="Id">
+                        <p>@oPersona.Puesto</p>
+                    </td>
+                    <td class="sorting_1" data-title="Id">
+                        <p>@oPersona.IdOrganismo</p>
+                    </td>
+                    <td class="sorting_1" data-title="Id">
+                        <p>@ObtenerEstado(oPersona.Id)</p>
+                    </td>
+                </tr>
+            }
+        </tbody>
+    </table>
+</AuthorizeView>
+@code {
+
+
+    [Parameter]
+    public int Id { get; set; }
+
+    public string accion { get; set; }
+    Evento oEvento = new Evento();
+    Respuesta<Evento> oRespuestaEvento = new Respuesta<Evento>();
+    public string Url = "/api/evento";
+    public string UrlInvitacion = "/api/invitacion";
+    public string UrlPersona = "/api/persona";
+    string cadenaFlyer = "";
+    public string UrlConfirma = "/api/eventoparticipante/ConfirmaAsistencia";
+    public string UrlEventoParticipante = "/api/eventoparticipante";
+
+    Respuesta<List<Invitacion>> oRespuestaInvitaciones = new Respuesta<List<Invitacion>>();
+    Respuesta<EventoParticipante> oRespuestaEventoParticipante = new Respuesta<EventoParticipante>();
+
+    List<EventoParticipante> eventoParticipantes = new List<EventoParticipante>();
+    string InputText { get; set; } = "";
+    //string QRCodeStr { get; set; } = "";
+    string FlyerEvento { get; set; } = "";
+    bool EsconderBoton { get; set; } = true;
+    private bool EsconderTabla { get; set; } = true;
+
+    Invitacion invitadoAConfirmar = null;
+    public string nombrePortada { get; set; }
+    public string nombreFlyer { get; set; }
+    public string UrlArchivo = "/api/archivos";
+
+    public string emailPersona { get; set; }
+    public bool IsAuthenticated { get; set; } = true;
+    public bool OcultarQr { get; set; } = true;
+
+    //public async Task MostrarEscaner()
+    //{
+    //    await js.InvokeVoidAsync("traerModalScanner");
+
+    //}//ESTA CODIGO ERA DE CUANDO EL MODAL DEL ESCANER ESTABA DENTRO DEL DISP, AHORA ESTA EN CONTROL DE ACCESO
+
+    List<Invitacion> invitaciones = new List<Invitacion>();
+    List<Persona> personasYaInvitadas = new List<Persona>();
+    List<Persona> personas = new List<Persona>();
+    private string MensajeTabla { get; set; } = "Sin datos aún";
+    private bool IsShowError { get; set; } = true;
+    private void ShowError(bool mostrar)
+    {
+        if (mostrar)
+            IsShowError = false;
+        else
+            IsShowError = true;
+    }
+    private bool IsShowTabla { get; set; } = true;
+    private void ShowTabla(bool mostrar)
+    {
+        if (mostrar)
+            IsShowTabla = false;
+        else
+            IsShowTabla = true;
+    }
+    private string _authMessage;
+    private string _userId;
+    private string CorreoUsuario { get; set; } = "";
+    private string estadoInscripcion { get; set; } = "";
+    private string NroDeDNI { get; set; } = "";
+    bool encontroInvitado = false;
+    LoggerManger logger = new LoggerManger();
+    private Persona datosPersona { get; set; }
+
+    public bool Mostrar { get; set; } = true;
+    public bool Spinner { get; set; } = false;
+    public bool BotonInscribirse { get; set; } = true;
+
+
+    public bool ShowScanBarcode { get; set; } = false;
+
+    //public string? BarCode { get; set; }
+
+    protected async override Task OnAfterRenderAsync(bool firstRender)
+    {
+
+        //logger.LogError("pasa por after");
+
+        //logger.LogError(firstRender.ToString());
+
+        //if (firstRender != false)
+        //{
+        //            logger.LogError("en el bucle");
+
+        //logger.LogError(firstRender.ToString());
+
+
+        await InsertarQRDisp(firstRender);//SI HAY INVITADOS VA A ARMAR EL CODIGO QR CON JAVASCRIPT
+                                          //}
+                                          //        firstRender = false;
+
+    }
+
+    protected override async Task OnInitializedAsync()
+    {
+        await CompletarDNIYEmailUsuario();
+
+        //await fileUpload.borrarArchivosEnTemporales("", "");//SI SE DESEA ELEMINAR LOS ARCHIVOS DE LAS CARPETAS TENPORALES SE PUEDEN USAR ESTAS FUNCIONES DESCOMENTADOLAS
+
+        //await fileUpload.borrarArchivosEnArchivosIndex();//CON ESTA FUNCION SE ELIMINAN LAS IMAGENES DEL DISP PERTENECIENTES A ESTE ELEMENTO, PERO PERMANECEN EN LA BASE DE DATOS
+        if (Id != 0)
+        {
+            //TRAE DATOS DEL EVENTO
+            try
+            {
+                string url = Http.BaseAddress.AbsoluteUri;
+
+                oRespuestaEvento = await Http.GetFromJsonAsync<Respuesta<Evento>>(Url + "/" + Id);
+
+                if (oRespuestaEvento.Data != null)
+                {
+                    oEvento = oRespuestaEvento.Data;
+
+                    accion = "Evento: " + oEvento.Nombre;
+
+                    await TraerArchivosEvento(oRespuestaEvento.Data);
+
+                    oRespuestaInvitaciones = await Http.GetFromJsonAsync<Respuesta<List<Invitacion>>>(UrlInvitacion + "/" + Id);
+                    //TRAE LAS INVITACIONES PARA PODER TRAER LOS NOMBRES DE LAS PERSONAS
+                    if (oRespuestaInvitaciones.Exito == 0)
+                    {
+                        ShowTabla(false);
+                        EsconderTabla = false;
+                        //SI NO HAY INVITACIONES ESCONDE LA TABLA
+
+                    }
+                    else
+                    {
+
+                        invitaciones = oRespuestaInvitaciones.Data;
+                        var authState = await AuthenticationStateProvider.GetAuthenticationStateAsync();
+                        var user = authState.User;
+
+                        if (user.Identity.IsAuthenticated)
+                        {
+                            //InsertarQRDisp();//SI HAY INVITADOS VA A ARMAR EL CODIGO QR CON JAVASCRIPT
+
+                            foreach (Invitacion item in invitaciones)
+                            {
+                                if (item.IdPersona != null)
+                                {
+                                    var personaAux = await Http.GetFromJsonAsync<Respuesta<Persona>>(UrlPersona + "/" + item.IdPersona);
+                                    if (personaAux.Exito == 1)
+                                    {
+                                        Persona aux = personaAux.Data;
+                                        personasYaInvitadas.Add(aux);
+
+                                        oRespuestaEventoParticipante = await Http.GetFromJsonAsync<Respuesta<EventoParticipante>>(UrlEventoParticipante + "/" + item.Id);
+                                        eventoParticipantes.Add(oRespuestaEventoParticipante.Data);
+
+                                        if (aux.MailContacto == CorreoUsuario)//ACA TENGO QUE COMPARAR CON EL DNI TMB
+                                        {
+                                            //ESTO SOLO FUNCIONA CUANDO EL QUE INGRESA AL DISP ES EL MISMO USUARIO QUE ESTA LOGUEADO Y QUIERE CONFIRNMAR SU ASISTENCIA
+                                            //SOLO ES VALIDO PARA USUARIOS POR IDENTIDADES//ES CODIGO DE LA PRIMERA VERSION CON TRES LOG IN
+                                            switch (oRespuestaEventoParticipante.Data.EstadodeInscripcion)
+                                            {
+                                                case "Pendiente":
+                                                    encontroInvitado = true;
+                                                    invitadoAConfirmar = item;
+                                                    break;
+                                                case "Preinscripto":
+                                                    estadoInscripcion = "Aguarde confirmación para el ingreso";
+                                                    EsconderBoton = true;
+                                                    encontroInvitado = false;
+                                                    break;
+                                                case "Preinscripto I.":
+                                                    estadoInscripcion = "Aguarde confirmación para el ingreso";
+                                                    EsconderBoton = true;
+                                                    encontroInvitado = false;
+
+                                                    break;
+                                                case "Aceptado":
+                                                    estadoInscripcion = "Ingreso aceptado";
+                                                    EsconderBoton = true;
+                                                    encontroInvitado = false;
+                                                    break;
+
+                                                default: break;
+
+                                            }
+
+                                        }
+                                    }
+                                }
+                            }
+                            MostrarConfirmar(encontroInvitado);
+                        }
+                        else
+                        {
+
+                            BotonInscribirse = false; //habilita el boton inscribirse
+                            IsAuthenticated = false;//no esta autentificado
+
+                        }
+                        MostrarInvitados(personasYaInvitadas);
+
+                    }
+
+                }
+                else
+                {
+                    accion = "No fue posible recuperar el evento.";
+                }
+            }
+            catch (Exception e)
+            {
+
+                logger.LogError("OnInitializedAsync disp", e);
+                accion = "Error en carga";
+
+            }
+
+        }
+        else
+        {
+            accion = "No fue posible crear el evento";
+        }
+        Mostrar = false;
+        Spinner = true;
+    }
+    private async Task ConfirmarAsistencia()
+    {//SOLO PUEDEN CONFIRMAR ASISTENCIA A TRAVES DE ESTE SITIO LOS QUE FUERON LOGUEADOS EN IDENTIDADES
+        try
+        {
+            if (Id != 0 && invitadoAConfirmar != null)
+            {
+                var dato = await Http.PutAsJsonAsync<int>(UrlConfirma + "/" + invitadoAConfirmar.Id, invitadoAConfirmar.Id);
+                var rta = await Http.GetFromJsonAsync<Respuesta<EventoParticipante>>(UrlEventoParticipante + "/" + invitadoAConfirmar.Id);
+                if (rta.Data.EstadodeInscripcion == "Preinscripto" || rta.Data.EstadodeInscripcion == "Preinscripto I.")
+                {
+                    EsconderBoton = true;
+                    estadoInscripcion = "Preinscripto";
+                    emailPersona = datosPersona.MailContacto;
+
+                    if (datosPersona != null)
+                    {
+                        //SI EL USUARIO TIENE OTROS EVENTOS PENDIENTES PASA A OTRO SITIO
+                        var retorno = await Http.GetFromJsonAsync<Respuesta<int>>(Url + "/TraerEventoInvitado/" + datosPersona.Id);
+
+                        if (retorno.Data == 0)
+                        {
+                            NavigationManager.NavigateTo("/evento/disp/" + retorno.Data.ToString(), true);
+                        }
+                        else
+                        {
+                            NavigationManager.NavigateTo("/evento", true);
+
+                        }
+                    }
+                    NavigationManager.NavigateTo("/evento/disp/" + Id, true);
+                }
+            }
+
+        }
+        catch (Exception ex)
+        {
+
+            logger.LogError("ConfirmarAsistencia", ex);
+        }
+    }
+    public async Task Cancelar()
+    {
+        NavigationManager.NavigateTo("/evento", true);
+
+    }
+    //TRAER ARCHIVOS DEL EVENTOS AL DISP, LOS TRAE DE LA BASE DE DATOS
+    public async Task TraerArchivosEvento(Evento oEvento)
+    {
+        var root = FuncionesBasicas.getAppSettings();
+
+        try
+        {
+            var oRespuestaArchivo = await Http.GetFromJsonAsync<Respuesta<Archivo>>(UrlArchivo + "/" + oEvento.Id);
+
+            if (oRespuestaArchivo.Data != null)
+            {
+                try
+                {
+                    if (oRespuestaArchivo.Data.NombreFlyer != null)
+                    {
+
+                        nombreFlyer = oRespuestaArchivo.Data.NombreFlyer;
+
+                        string path = root.GetSection("DVArchivos")["EventosCeremonial"] + "/Temporales/Flyers/" + nombreFlyer;
+                        //SI EL NOMBRE DEL ARCHIVO NO EXISTE EN EL DISCO VIRTUAL LO VA A TRAER DE LA BASE DE DATOS
+                        //LOS NOMBRES Y LOS DATOS DE LOS ARCHIVOS SOLO PUEDEN ESTAR EN LA BASE DE DATOS, TABLA ARCHIVOS
+                        if (!File.Exists(path))
+                        {
+
+                            MemoryStream m = null;
+                            using (m = new MemoryStream(oRespuestaArchivo.Data.Flyer))
+                            {
+                                using (System.IO.FileStream fileStream = new FileStream(path, FileMode.Create, FileAccess.Write))
+                                {
+
+                                    m.WriteTo(fileStream);
+                                }
+                            }
+
+                        }
+                    }
+                }
+                catch (Exception e)
+                {
+
+                    logger.LogError("TraerArchivosEvento, error ene traer Flyer", e);
+
+                }
+
+                try
+                {
+                    if (oRespuestaArchivo.Data.NombrePortada != null)
+                    {
+
+
+                        nombrePortada = oRespuestaArchivo.Data.NombrePortada;
+                        string path = root.GetSection("DVArchivos")["EventosCeremonial"] + "/Temporales/Portadas/" + nombrePortada;
+
+                        if (!File.Exists(path))
+                        {
+                            MemoryStream m = null;
+                            using (m = new MemoryStream(oRespuestaArchivo.Data.Portada))
+                            {
+                                using (System.IO.FileStream fileStream = new FileStream(path, FileMode.Create, FileAccess.Write))
+                                {
+
+                                    m.WriteTo(fileStream);
+
+
+                                }
+
+                            }
+                        }
+
+
+                    }
+                }
+                catch (Exception e)
+                {
+
+                    logger.LogError("TraerArchivosEvento, error ene traer Portada", e);
+
+                }
+
+                try
+                {
+                    if (oRespuestaArchivo.Data.NombrePrograma != null)
+                    {
+                        oEvento.RutaPrograma = oRespuestaArchivo.Data.NombrePrograma;
+                        string path = root.GetSection("DVArchivos")["EventosCeremonial"] + "/Temporales/Otros/" + oEvento.RutaPrograma;
+                        if (!File.Exists(path))
+                        {
+
+                            MemoryStream m = null;
+
+                            using (m = new MemoryStream(oRespuestaArchivo.Data.Programa))
+                            {
+
+                                using (System.IO.FileStream fileStream = new FileStream(path, FileMode.Create, FileAccess.Write))
+                                {
+                                    m.WriteTo(fileStream);
+                                }
+                            }
+                        }
+
+                    }
+                }
+                catch (Exception e)
+                {
+
+                    logger.LogError("TraerArchivosEvento, error ene traer Porgrama", e);
+
+                }
+
+
+            }
+        }
+        catch (Exception ex)
+        {
+
+            logger.LogError("TraerArchivosEvento", ex);
+
+        }
+    }
+
+
+
+    //ACA SE ARMA LA URL DE QR Y SE LLAMA A LA FUNCIONA DE JS
+    private async Task InsertarQRDisp(bool firstRender)
+    {
+        try
+        {
+
+
+            if (firstRender == true)
+            {
+
+                InputText = Http.BaseAddress.AbsoluteUri + "evento/disp/" + Id.ToString();
+
+                await js.InvokeVoidAsync("CrearQr", InputText);
+                OcultarQr = false;
+            }
+        }
+        catch (Exception ex)
+        {
+            logger.LogError("Error en insertar qr", ex);
+        }
+    }
+
+
+    private void MostrarInvitados(List<Persona> personasYaInvitadas)
+    {
+        if (personasYaInvitadas.Count() > 0)
+        {
+            ShowTabla(true);
+        }
+        else
+        {
+            ShowTabla(false);
+        }
+    }
+
+
+
+    private void MostrarConfirmar(bool encontroInvitado)
+    {
+        if (encontroInvitado == false)
+        {
+            EsconderBoton = true;
+        }
+        else
+        {
+            EsconderBoton = false;
+        }
+
+    }
+    //SOLO FUNCIONA CON USUARIOS DE IDENTIDADES, YA NO FUNCIONA IDENTITY
+    async Task CompletarDNIYEmailUsuario()
+    {
+        var authState = await AuthenticationStateProvider.GetAuthenticationStateAsync();
+        var user = authState.User;
+
+        //ACA TENGO QUE TRAERME EL DATO DE IDENTIDADES O DE IDENTITY PARA VERIFICAR SI EL USUARIO TIENE QUE CONFIRMAR SU INVITACION AL EVENTO
+        if (user.Identity.IsAuthenticated)
+        {
+            CorreoUsuario = user.Identity.Name;
+            var email = user.Identity.Name.ToLower();
+
+            if (user.Identity.Name != null && !user.Identity.Name.Contains("@"))
+            {
+                email = user.Identity.Name + "@trabajo.gob.ar";//ES USUARIO MINISTERIO
+            }
+            var rta = await Http.GetFromJsonAsync<Respuesta<Persona>>(UrlPersona + "/TraerId/" + email);
+            if (rta.Data != null)
+            {
+                datosPersona = rta.Data;
+                datosPersona.MailContacto = email;
+                NroDeDNI = rta.Data.NumeroDocumento;//ACA ME TRAIGO EL DNI POR SI LA PERSONA CAMBIO SU CORREO PERO CONSERVO EL DNI EN IDENTIDADES //SI ES EXTRANJERO PUEDE TENER VARIAS CUENTAS
+                CorreoUsuario = rta.Data.MailContacto;
+            }
+        }
+
+    }
+    //funcion para obtener el estado del participante, recorre las listas almacenadas en el inicio
+    private string ObtenerEstado(int Id)
+    {
+        string retorno = "";
+
+        if (invitaciones != null)
+        {
+            var invitacionPersona = invitaciones.Where(p => p.IdPersona == Id).ToList();
+            var eventoPersona = eventoParticipantes.Where(p => p.IdInvitacion == invitacionPersona.ElementAt(0).Id).ToList();
+            retorno = eventoPersona.ElementAt(0).EstadodeInscripcion;
+        }
+
+        return retorno;
+
+    }
+
+
+
+
+    }

@@ -1,0 +1,479 @@
+﻿@page "/"
+@*@attribute [Authorize]
+*@
+
+@using System.Security.Claims;
+@using EventosCeremonial.Helpers;
+@using Microsoft.AspNetCore.Authentication
+@using Microsoft.AspNetCore.Authentication.WsFederation;
+@using Microsoft.AspNetCore.Authentication.Cookies;
+
+@using Microsoft.AspNetCore.Identity;
+@using Microsoft.AspNetCore.Identity.EntityFrameworkCore;
+@inject AuthenticationStateProvider AuthenticationStateProvider
+@inject HttpClient Http
+@inject Microsoft.JSInterop.IJSRuntime Jsruntime
+@inject NavigationManager NavigationManager
+@using System.Threading;
+@using System.Threading.Tasks;
+@using Microsoft.Extensions.Configuration
+
+@using Microsoft.IdentityModel.Tokens;
+@using System.Text;
+@using System.Security.Cryptography;
+
+@using Bytescout.BarCode;
+
+@inject IFileUpload fileUpload
+@inject IJSRuntime js
+
+<br />
+<br />
+<br />
+
+<center hidden=@Spinner>
+    <div class="spinner-border" role="status">
+        <span class="sr-only">Loading</span>
+    </div>
+</center>
+
+<div hidden=@Mostrar>
+
+    @if (oRespuestaNuevos != null && oRespuestaNuevos.Data != null)
+    {
+        <div class="panel-pane pane-titulo" hidden=@Mostrar><div class="pane-content"><h2 class="activities-sidbar">Destacados</h2></div></div>
+        <br />
+        <br />
+
+    }
+</div>
+
+
+<center hidden=@Mostrar>
+    <div id="carouselExampleCaptions" class="carousel slide w-75" data-bs-ride="carousel">
+        <div class="carousel-indicators">
+            <button type="button" data-bs-target="#carouselExampleCaptions" data-bs-slide-to="0" class="active" aria-current="true" aria-label="Slide 1"></button>
+            <button type="button" data-bs-target="#carouselExampleCaptions" data-bs-slide-to="1" aria-label="Slide 2"></button>
+            <button type="button" data-bs-target="#carouselExampleCaptions" data-bs-slide-to="2" aria-label="Slide 3"></button>
+        </div>
+        <div class="carousel-inner">
+
+            @if (oRespuestaNuevos != null && oRespuestaNuevos.Data != null)
+            {
+
+                @foreach (var oElement in oRespuestaNuevos.Data)
+                {
+
+                    @if (flagNew <= 2)
+                    {
+                        if (flagNew == 0)
+                        {
+                            <div class="carousel-item active">
+                                <img src="@retornarUrl(oElement.Id)" class="d-block w-100" alt="@oElement.Nombre">
+
+                                <div class="carousel-caption d-none d-md-block">
+                                    <h5>
+                                        <a href="/evento/disp/@oElement.Id" target="_blank" style="color: white;">
+                                            @oElement.Nombre
+                                        </a>
+
+                                    </h5>
+                                    <p>@oElement.Descripcion</p>
+                                </div>
+
+                            </div>
+
+                        }
+                        else
+                        {
+
+                            <div class="carousel-item">
+                                <img src="@retornarUrl(oElement.Id)" class="d-block w-100 " alt="@oElement.Nombre">
+
+                                <div class="carousel-caption d-none d-md-block">
+                                    <h5>
+                                        <a href="/evento/disp/@oElement.Id" target="_blank" style="color: white;">
+                                            @oElement.Nombre
+                                        </a>
+                                    </h5>
+                                    <p>@oElement.Descripcion</p>
+                                </div>
+                            </div>
+                        }
+                        flagNew++;
+                    }
+                }
+            }
+
+        </div>
+
+        @if (oRespuestaNuevos != null && oRespuestaNuevos.Data != null)
+        {
+            if (oRespuestaNuevos.Data.Count() > 1)
+            {
+                <button class="carousel-control-prev" type="button" data-bs-target="#carouselExampleCaptions" data-bs-slide="prev">
+                    <span class="carousel-control-prev-icon" aria-hidden="true"></span>
+                    <span class="visually-hidden">Previous</span>
+                </button>
+                <button class="carousel-control-next" type="button" data-bs-target="#carouselExampleCaptions" data-bs-slide="next">
+                    <span class="carousel-control-next-icon" aria-hidden="true"></span>
+                    <span class="visually-hidden">Next</span>
+                </button>
+            }
+        }
+
+    </div>
+
+</center>
+
+
+<br />
+<br />
+
+
+<h3 hidden=@Mostrar>Eventos pasados</h3>
+
+
+
+<table class="table tabla-condensed  dataTable no-footer  " id="ponchoTable" aria-describedby="ponchoTable_info" role="grid" hidden=@Mostrar>
+
+    <tbody>
+        @if (oRespuestaPasados.Data == null && oRespuestaPasados.Exito == 0)
+        {
+            <tr role="row" class="odd">
+                <td class="sorting_1" colspan="8">
+                    <p>Cargando...</p>
+                </td>
+            </tr>
+        }
+        <tr class="row">
+
+            @if (oRespuestaPasados != null && oRespuestaPasados.Data != null)
+            {
+
+                @foreach (var oElement in oRespuestaPasados.Data)
+                {
+                    @if (flagOld <= 5)
+                    {
+                        <div class="col-xs-12 col-sm-4 col-md-4">
+                            <a href="/evento/disp/@oElement.Id" class="panel panel-default" target="_blank" rel="noopener noreferrer">
+                                <div style="background-image:url(@retornarUrl(oElement.Id));" class="panel-heading">
+                                </div>
+                                <div class="panel-body">
+                                    <h3>@oElement.Nombre</h3>
+                                    <div class="text-muted">
+                                        <div data-title="Inicio">
+                                            <p>@oElement.FechaHoraInicio.Value.ToString("dd/MM/yy HH:MM ") hs</p>
+                                        </div>
+                                    </div>
+                                </div>
+                            </a>
+                        </div>
+                        flagOld++;
+                    }
+                }
+            }
+        </tr>
+    </tbody>
+</table>
+
+
+
+
+@code {
+    private string _authMessage;
+    private string _userId;
+
+    public string Url = "/api/evento";
+    public Respuesta<List<Evento>> oRespuestaNuevos = new Respuesta<List<Evento>>();
+    public Respuesta<List<Evento>> oRespuestaPasados = new Respuesta<List<Evento>>();
+    int flagOld = 0;//CANTIDAD DE ELEMENTOS QUE SE MOSTRARAN EN LA LISTA DE EVENTOS PASADOS, SON 6
+    int flagNew = 0;//CANTIDAD DE ELEMENTOS QUE SE MOSTRARAN EN LA LISTA DE EVENTOS NUEVOS, SON 3
+
+    public List<Archivo> Archivos { get; set; } = new List<Archivo>();
+
+    public string UrlPersona = "/api/persona";
+    public string UrlArchivo = "/api/archivos";
+    LoggerManger logger = new LoggerManger();
+    ClaimsPrincipal user;
+
+    public bool Mostrar { get; set; } = true;
+    public bool Spinner { get; set; } = false;
+
+    protected override async Task OnInitializedAsync()
+    {
+
+        var root = FuncionesBasicas.getAppSettings();
+
+        //var authState = await AuthenticationStateProvider.GetAuthenticationStateAsync();
+
+
+        //user = authState.User;
+
+
+        // reader.MediumTrustLevelCompatible = true; // uncomment this line to enable Medium Trust compatible mode (slows down the recognition process as direct image data access is disabled in Medium Trust mode)
+
+
+
+
+        //SI LOS EVENTOS FINALIZARON PARA NO MOSTRAR EVENTOS VIEJOS EN EL INICIO SE PASAN A FINALZADOS
+        var rdo = await Http.GetFromJsonAsync<Respuesta<Evento>>(Url + "/PasarAFinalizados");
+
+
+        //await GetClaimsPrincipalData(logger, user);
+
+        try
+        {
+
+            //CON ESTAS FUNCIONES SE PUEDEN BORRAR LOS ARCHIVOS DEL DIRECTORIO VIRTUAL SOLAMENTE
+            //await fileUpload.borrarArchivosEnTemporales("", "");
+
+            //await fileUpload.borrarArchivosEnArchivosIndex();
+
+            oRespuestaNuevos = await Http.GetFromJsonAsync<Respuesta<List<Evento>>>(Url + "/OrdenarXFechas");
+            if (oRespuestaNuevos.Data != null)
+            {
+                await GuardarArchivosFotosIndex(oRespuestaNuevos.Data);
+
+            }
+        }
+        catch (Exception e)
+        {
+
+            logger.LogError("Error en OrdenarXFechas", e);
+        }
+        try
+        {
+            oRespuestaPasados = await Http.GetFromJsonAsync<Respuesta<List<Evento>>>(Url + "/EventosAnteriores");
+
+            if (oRespuestaPasados.Data != null)
+            {
+                await GuardarArchivosFotosIndex(oRespuestaPasados.Data);
+
+            }
+        }
+        catch (Exception e)
+        {
+
+            logger.LogError("Error enEventosAnteriores", e);
+        }
+        Mostrar = false;
+        Spinner = true;
+
+
+
+    }
+
+    //GUARDA LAS PORTADAS DE LOS EVENTOS QUE SE ENCUENTRAN EN LA BASE DE DATOS DENTRO DE LAS CARPETAS TEMPORALES DEL SERVIDOR
+    public async Task GuardarArchivosFotosIndex(List<Evento> oRespuestaNuevos)
+    {
+        var root = FuncionesBasicas.getAppSettings();
+
+        foreach (Evento item in oRespuestaNuevos)
+        {
+
+
+            var oRespuestaArchivo = await Http.GetFromJsonAsync<Respuesta<Archivo>>(UrlArchivo + "/" + item.Id);
+
+            if (oRespuestaArchivo.Data != null)
+            {
+
+                if (oRespuestaArchivo.Data.NombrePortada != null)
+                {
+
+                    //SE FIJA QUE NO EXISTAN LOS ARCHIVOS DENTRO DEL DIRECTORIO PARA NO GUARDAR SIEMPRE LOS MISMOS
+
+                    string path = root.GetSection("DVArchivos")["EventosCeremonial"] + "/FotosIndex/" + oRespuestaArchivo.Data.NombrePortada;
+
+                    if (!File.Exists(path))
+                    {
+                        MemoryStream m;
+
+                        using (m = new MemoryStream(oRespuestaArchivo.Data.Portada))
+                        {
+                            try
+                            {
+
+                                using (System.IO.FileStream fileStream = new FileStream(path, FileMode.Create, FileAccess.Write))
+                                {
+                                    m.WriteTo(fileStream);
+
+                                }
+
+
+                            }
+                            catch (Exception e)
+                            {
+
+                                logger.LogError("No se guarod en " + path);
+
+                            }
+
+
+                        }
+                    }
+                    if (File.Exists(path))
+                    {
+
+                        Archivos.Add(oRespuestaArchivo.Data);
+                    }
+
+                }
+            }
+        }
+
+    }
+
+
+
+
+    //SE EJECUTA ESTE CODIGO PARA QUE NO SE VUELVA OTRA VEZ A RENDIRZAR EL SITIO
+    protected async override Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (firstRender != false)
+        {
+            var timer = new Timer(new TimerCallback(async _ =>
+      {
+          //await Jsruntime.InvokeAsync<object>("initializeCarousel");
+
+
+      }), null, 5000, 5000);
+
+        }
+
+
+        firstRender = false;
+    }
+
+    //RETORNA LAS IMAGENES QUE TRAJE DE LA TABLA DE ARCHIVOS Y DEVUELVE LA URL DEL DOCUMENTO EN EL SERVIDOR TEMPORAL
+    private string retornarUrl(int id)
+    {
+
+        string cadena = "";
+
+        if (Archivos.Any(x => x.Temporales == id))
+        {
+
+            var archivo = Archivos.Where(x => x.Temporales == id).ToList().ElementAt(0);
+
+            cadena = Http.BaseAddress.AbsoluteUri + "Archivos/FotosIndex/" + archivo.NombrePortada;
+        }
+        else
+        {
+            cadena = Http.BaseAddress.AbsoluteUri + "mteyss-atajo-mas-info-001.png";
+
+        }
+        return cadena;
+    }
+
+
+    //FUNCION UTILIZADA PARA OBTENER LAS CREDENCIALES DEL UISUARIO, SI ESTE NO SE ENCUENTRA EN BASE DE DATOS ES ALMACENADO EN LA LISTA DE PERSONAS,
+    // DE LO CONTRARIO SE ENCUENTRA EN LA LISTA DE USUARIOS DE IDENTITY
+    private async Task GetClaimsPrincipalData(LoggerManger logger, ClaimsPrincipal user)
+    {
+
+        //if (user.Identity.IsAuthenticated)
+        //{
+        //    _authMessage = $"{user.Identity.Name} is authenticated.";
+        //    _userId = $"User Id: {user.FindFirst(c => c.Type == "sub")?.Value}";
+
+        //    var email = ClaimsPrincipalExtensions.GetEmail(user);
+
+        //    var cuil = ClaimsPrincipalExtensions.GetCuil(user);
+
+        //    var rol = ClaimsPrincipalExtensions.GetRol(user);
+
+        //var name = ClaimsPrincipalExtensions.GetDisplayName2(user);
+
+
+        //var root = FuncionesBasicas.getAppSettings();
+        //string secret = root.GetSection("Token")["Secret"];
+        //var key = Encoding.ASCII.GetBytes(secret);
+
+        ////var jwtHelper = new JWTHelper(secret);
+        ////var token = jwtHelper.CreateToken(user.Email, claimsIdentity);
+
+        //var claimsI = new ClaimsIdentity();
+        //claimsI.AddClaim(new Claim(ClaimTypes.NameIdentifier, user.Identity.Name));
+        //SecurityTokenDescriptor tokenDescription = new SecurityTokenDescriptor()
+        //    {
+
+        //        Subject = claimsI,
+        //        Expires = DateTime.UtcNow.AddHours(7),
+        //        SigningCredentials = new SigningCredentials(new SymmetricSecurityKey(key), SecurityAlgorithms.HmacSha256Signature)
+        //    };
+
+        //var tokenHandler = new JwtSecurityTokenHandler();
+
+
+        //var createdToken = tokenHandler.CreateToken(tokenDescription);
+
+        //string bearer_token = tokenHandler.WriteToken(createdToken);
+
+
+        //if (email == null)
+        //{
+
+        //    if (user.Identity.Name != null && !user.Identity.Name.Contains("@"))
+        //    {
+
+        //        email = user.Identity.Name + "@trabajo.gob.ar";//ES USUARIO MINISTERIO
+
+
+
+
+        //    }
+
+        //}
+
+        //if (email != null)
+        //{
+        //    var retornoCorreo = await Http.GetFromJsonAsync<Respuesta<Persona>>(UrlPersona + "/TraerId/" + email.ToLower());
+
+        //    if (retornoCorreo.Data != null)
+        //    {
+
+        //        if (cuil != "")
+        //        {
+
+        //            retornoCorreo.Data.NumeroDocumento = cuil;
+
+
+        //        }
+        //        Persona aux = retornoCorreo.Data;
+
+
+        //        var nada = await Http.PutAsJsonAsync<Persona>(UrlPersona + "/EditarDNI", aux);
+
+        //        //ESTA EN BASE DE DATOS MODIFICAR
+        //    }
+        //    else
+        //    {
+        //        //NO ESTA EN BASE DE DATOS, GUARDAR
+
+        //        Persona aux = new Persona();
+
+        //        aux.Nombre = ClaimsPrincipalExtensions.GetDisplayName(user);
+
+        //        aux.MailContacto = ClaimsPrincipalExtensions.GetEmail(user).ToLower();
+
+        //        aux.Apellido = "SIN APELLIDO";
+
+        //        aux.NumeroDocumento = ClaimsPrincipalExtensions.GetCuil(user);
+
+        //        var rta = await Http.PostAsJsonAsync<Persona>(UrlPersona + "/AgregarPersonaIndex", aux);
+
+        //    }
+
+
+
+        //}
+
+
+
+
+
+        //}
+
+    }
+}

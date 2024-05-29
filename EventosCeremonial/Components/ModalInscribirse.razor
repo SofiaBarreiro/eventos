@@ -1,0 +1,933 @@
+﻿@inject HttpClient Http
+@inject IJSRuntime js
+@inject NavigationManager NavigationManager
+@using System.Threading;
+
+<div class="modal @ModalClass" tabindex="-1" role="dialog" style="display:@ModalDisplay">
+    <div class="modal-dialog" role="document">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Ingrese sus datos</h5>
+            </div>
+            <div class="modal-body">
+                <div class="row">
+                    <div class="col-md-12 form-group item-form">
+                        <label for="exampleInputEmail1">Correo electrónico*</label>
+                        <input type="text" class="form-control" @bind-value="emailAux" @onfocusout="BuscarCorreo" id="inputEmail">
+                    </div>
+                </div>
+                <div hidden="@esconderBody" id="bodyInscripcion">
+                    <div class="row">
+                        <div class="col-md-6 form-group item-form">
+                            <label for="nombre">Nombre*</label>
+                            <input type="text" id="inputNombre" class="form-control" @bind-value="Nombre">
+                        </div>
+                        <div class="col-md-6 form-group item-form">
+                            <label for="apellido">Apellido*</label>
+                            <input type="text" id="inputApellido" class="form-control" @bind-value="Apellido">
+                        </div>
+                    </div>
+
+                    <div class="row" hidden="@esconderPregExtranjero">
+                        <div class="col-md-6 form-group item-form">
+                            <input type="checkbox" id="esExtranjero" />
+                            ¿Es extranjero?
+                        </div>
+                        <div class="col-md-6 form-group item-form" hidden="hidden">
+                            <label for="">datosExtranjero</label>
+                            <input type="text" class="form-control" @bind-value="inputCampoExtranjero" id="inputEsExtranjero">
+                        </div>
+                    </div>
+
+                    <div class="row">
+                        <div class="col-md-6 form-group item-form" hidden="hidden">
+                            <label for="idInvitado">IdInvitado</label>
+                            <input type="number" class="form-control" @bind-value="IdInvitado">
+                        </div>
+
+                        <div class="col-md-6 form-group item-form">
+                            <label id="NombreCampo">@NombreCampo *</label>
+                            <input type="text" class="form-control" @bind-value="dniAux" id="inputDNI">
+                            <small class="form-text text-muted" id="smallMensaje">Si es empleado del MTEySS ingrese su correo institucional y CUIL</small>
+                        </div>
+                    </div>
+                    <div class="row">
+                        <div class="col-md-6 form-group item-form">
+                            <label for="telefono">Teléfono</label>
+                            <input type="text" class="form-control" @bind-value="TelefonoContacto">
+                        </div>
+                        <div class="col-md-6 form-group item-form">
+                            <label for="puesto">Cargo</label>
+                            <input type="text" class="form-control" @bind-value="Puesto">
+                        </div>
+                    </div>
+
+
+
+                    @* <div class="col-md-12 form-group item-form">
+                        <label for="organismo">Organismo</label>
+                        <input type="number" class="form-control" @bind-value="IdOrganismo">
+                        <select class="form-control" @bind-value="IdOrganismo" >
+                        <option value="0">--Seleccionar--</option>
+                        @foreach (var organismo in Organismos)
+                        {
+
+                        <option value="@organismo.Id">@organismo.Nombre</option>
+
+                        }
+                        </select>
+                        </div>*@
+                </div>
+            </div>
+
+            <div class="modal-footer">
+                <button type="button" id="botonGuardarInscripcion" @onclick="Save" class="btn btn-primary" disabled="@esconderGuardar">Enviar confirmación</button>
+                <button type="button" class="btn btn-secondary" data-dismiss="modal" @onclick="() => Close()">Cancelar</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+
+@if (ShowBackdrop)
+{
+    <div class="modal-backdrop fade show"></div>
+}
+@code {
+
+    public Guid Guid = Guid.NewGuid();
+    public string ModalDisplay = "none;";
+    public string ModalClass = "";
+    public bool ShowBackdrop = false;
+    public int IdInvitado { get; set; } = 0;
+    public string Email { get; set; } = "";
+    public string DNI { get; set; } = "";
+    public string Nombre { get; set; } = "";
+    public string Apellido { get; set; } = "";
+    public int IdEvento { get; set; } = 0;
+    public int idPersona { get; set; } = 0;
+    public string habilitarDNI { get; set; } = "";
+    public string emailAux { get; set; } = "";
+    public string dniAux { get; set; } = "";
+    public string TelefonoContacto { get; set; } = "";
+    public string Puesto { get; set; } = "";
+    public string mensajeValidacion { get; set; } = "";
+    public bool MostrarDNIoPasaporte { get; set; } = true;
+    public string inputCampoExtranjero { get; set; } = "";
+    public string NombreCampo { get; set; } = "DNI";
+    public string DetalleCampo { get; set; } = "Si es empleado del MTEySS ingrese su CUIL y su correo institucional";
+    public int IdOrganismo { get; set; }
+    public int MostrarPasaporte { get; set; } = 0;
+    public bool esconderPregExtranjero { get; set; } = false;
+    public bool esconderBody { get; set; } = false;
+    public bool esconderGuardar { get; set; } = false;
+
+    public bool guardarAsistio { get; set; } = true;
+    public bool VolverAInicio { get; set; } = false;
+
+
+    public int idPuntoDeAcceso { get; set; }
+
+    public int idInvitaP { get; set; } = 0;
+
+
+
+    Persona personaNueva { get; set; } = null;
+    LoggerManger logger = new LoggerManger();
+    public string UrlConfirma = "/api/eventoparticipante/ConfirmaAsistencia";
+    public string UrlPersona = "/api/persona";
+    public string Url = "/api/evento";
+    public string UrlInvitacion = "/api/invitacion";
+    public string UrlEventoParticipante = "/api/eventoparticipante";
+    public string UrlOrganismo = "/api/organismo";
+    Respuesta<Persona> oRespuestaPersona = new Respuesta<Persona>();
+    Respuesta<Evento> oRespuestaEvento = new Respuesta<Evento>();
+    Respuesta<List<Invitacion>> oRespuestaInvitaciones = new Respuesta<List<Invitacion>>();
+    Respuesta<EventoParticipante> oRespuestaEventoParticipante = new Respuesta<EventoParticipante>();
+    Respuesta<EventoParticipante> oRespuestaEventoParticipanteCargado = new Respuesta<EventoParticipante>();
+    Evento oEvento = new Evento();
+    List<Invitacion> invitaciones = new List<Invitacion>();
+    List<Persona> personasYaInvitadas = new List<Persona>();
+    List<Persona> personas = new List<Persona>();
+    public List<Organismo> Organismos { get; set; } = new List<Organismo>();
+    public Respuesta<List<Organismo>> oRespuestaOrganismo = new Respuesta<List<Organismo>>();
+    List<EventoParticipante> eventoParticipantes = new List<EventoParticipante>();
+    Respuesta<Object> oRespuestaInvitado = new Respuesta<Object>();
+    Persona personaAcargar = new Persona();
+    public List<Persona> personasPreinscriptas { get; set; } = new List<Persona>();
+    MailRequest listaPreinscriptos = new MailRequest();
+
+
+    public async Task Open(int idEvento, bool esIngreso, bool esRegistro)
+    {
+        guardarAsistio = esIngreso;
+        VolverAInicio = esRegistro;
+
+        try
+        {
+            ModalDisplay = "block";
+            ModalClass = "Show";
+            ShowBackdrop = true;
+            IdEvento = idEvento;
+            StateHasChanged();
+            //      oRespuestaOrganismo = await Http.GetFromJsonAsync<Respuesta<List<Organismo>>>(UrlOrganismo);
+            //Organismos = oRespuestaOrganismo.Data;
+            oRespuestaEvento = await Http.GetFromJsonAsync<Respuesta<Evento>>(Url + "/" + idEvento);
+            if (oRespuestaEvento.Data != null)
+            {
+                oEvento = oRespuestaEvento.Data;
+                //listaPreinscriptos.emailEvento = oRespuestaEvento.Data;
+                await traeInvitados(idEvento);
+
+            }
+            if (oEvento.IdEstado != 1)
+            {
+
+
+                await js.InvokeVoidAsync("alert", "El evento no se encuentra activo");
+                var timer = new Timer(new TimerCallback(_ =>
+                {
+                    NavigationManager.NavigateTo(NavigationManager.Uri, forceLoad: true);
+                }), null, 1000, 1000);
+            }
+
+        }
+        catch (Exception e)
+        {
+
+            logger.LogError("Error en abrir formulario", e);
+
+        }
+        await js.InvokeVoidAsync("checkEsExtranjero");
+
+        await js.InvokeAsync<bool>("agregarComportamientoCuerpoModal");
+        //esconderBody = true;
+
+    }
+
+
+    private async Task traeInvitados(int idEvento)
+    {
+        try
+        {
+            oRespuestaInvitaciones = await Http.GetFromJsonAsync<Respuesta<List<Invitacion>>>(UrlInvitacion + "/" + idEvento);
+            if (oRespuestaInvitaciones.Exito == 0)
+            {
+                //await js.InvokeVoidAsync("alert", "No se encontraron invitados al evento");
+                //var timer = new Timer(new TimerCallback(_ =>
+                //{
+                //    NavigationManager.NavigateTo(NavigationManager.Uri, forceLoad: true);
+                //}), null, 1000, 1000);
+            }
+            else
+            {
+                foreach (Invitacion item in oRespuestaInvitaciones.Data)
+                {
+
+                    if (item.IdPersona != null)
+                    {
+
+                        var personaAux = await Http.GetFromJsonAsync<Respuesta<Persona>>(UrlPersona + "/" + item.IdPersona);
+
+                        if (personaAux.Exito == 1)
+                        {
+                            Persona aux = personaAux.Data;
+                            personasYaInvitadas.Add(aux);
+                            oRespuestaEventoParticipante = await Http.GetFromJsonAsync<Respuesta<EventoParticipante>>(UrlEventoParticipante + "/" + item.Id);
+                            eventoParticipantes.Add(oRespuestaEventoParticipante.Data);
+                        }
+                    }
+                }
+            }
+        }
+        catch (Exception ex)
+        {
+
+            logger.LogError("Error traer invitados ", ex);
+        }
+
+
+    }
+    private async Task ReiniciarFormulario()
+    {
+        await js.InvokeVoidAsync("habilitarCampo", "inputNombre");
+        await js.InvokeVoidAsync("habilitarCampo", "inputDNI");
+        await js.InvokeVoidAsync("habilitarCampo", "inputApellido");
+        dniAux = "";
+        Nombre = "";
+        Apellido = "";
+        TelefonoContacto = "";
+        Puesto = "";
+        IdInvitado = 0;
+        idPersona = 0;
+        personaNueva = null;
+    }
+
+    private async Task BuscarCorreo()
+    {
+        try
+        {
+            esconderPregExtranjero = false;
+
+            await ReiniciarFormulario();
+            if (emailAux != "")
+            {
+
+                emailAux = emailAux.ToLower();
+                if (FuncionesBasicas.IsValidMail(emailAux))
+                {
+                    esconderBody = false;
+
+                    var invitadP = personasYaInvitadas.Where(x => x.MailContacto == emailAux).ToList();
+
+                    if (invitaciones == null)
+                    {
+                        await js.InvokeVoidAsync("alert", "El correo que ingresó no se encuentra en la lista de invitados al evento");
+                        await js.InvokeVoidAsync("habilitarDNI", dniAux);
+                    }
+                    else
+                    {
+                        if (invitadP.Count() > 0)
+                        {
+                            Persona invitado = invitadP.ElementAt(0);
+                            await CargarFormulario(invitado, emailAux);
+                            await EstaInvitado(invitado);
+                        }
+                        else
+                        {
+                            //NO ESTA INSCRIPTO EN EL EVENTO, PUEDE ESTAR EN BASE DE DATOS
+                            //ACA no se GUARDA
+                            var personaAux = await Http.GetFromJsonAsync<Respuesta<Persona>>(UrlPersona + "/TraerId/" + emailAux);
+                            if (personaAux.Data != null)
+                            {
+                                personaAcargar = personaAux.Data;
+                                //esta en base de datos
+                                await CargarFormulario(personaAcargar, emailAux);
+                                personaNueva = personaAux.Data;
+                            }
+                        }
+                    }
+
+                }
+
+            }
+            else
+            {
+                await js.InvokeVoidAsync("habilitarDNI", dniAux);
+            }
+
+        }
+        catch (Exception e)
+        {
+            logger.LogError("Error en BuscarCorreo", e);
+        }
+
+
+    }
+
+    private async Task EstaInvitado(Persona invitado)
+    {
+        try
+        {
+            //await ChequearLengthDNI(dniAux);
+            var estadoParticipante = eventoParticipantes.Where(x => x.IdPersona == invitado.Id).ToList().ElementAt(0);
+            if (estadoParticipante != null)
+            {
+
+                IdInvitado = estadoParticipante.IdInvitacion;
+
+                if (estadoParticipante.EstadodeInscripcion != "")
+                {
+
+                    await js.InvokeVoidAsync("alert", "El usuario ingresado ya fue invitado.");
+                    //emailAux = "";
+                    //Nombre = "";
+                    ReiniciarFormulario();
+
+                }
+            }
+        }
+        catch (Exception e)
+        {
+            logger.LogError("Error en EstaInvitado", e);
+
+        }
+    }
+    private async Task ChequearLengthDNI(string dniAux)
+    {
+        if (dniAux != null)
+        {
+            if (dniAux != "")
+            {
+                if (dniAux.Length == 8 || dniAux.Length == 11)
+                {
+                    await js.InvokeVoidAsync("inhabilitarDNI", dniAux);
+                }
+                else
+                {
+                    await js.InvokeVoidAsync("habilitarDNI", dniAux);
+                }
+            }
+        }
+    }
+    private async Task CargarFormulario(Persona invitado, string emailAux)
+    {
+        try
+        {
+            //dniAux = invitado.NumeroDocumento;
+            Email = emailAux;
+            //DNI = dniAux;
+            Nombre = invitado.Nombre;
+            Puesto = invitado.Puesto;
+            TelefonoContacto = invitado.TelefonoContacto;
+            idPersona = invitado.Id;
+
+            if (Email.Contains("@trabajo.gob.ar"))
+            {
+                inputCampoExtranjero = "0";
+                esconderPregExtranjero = true;
+            }
+            else
+            {
+                esconderPregExtranjero = false;
+            }
+
+            if (invitado.Apellido != "SIN APELLIDO")
+            {
+
+                await js.InvokeVoidAsync("inhabilitarNombre", Nombre);
+                await js.InvokeVoidAsync("inhabilitarApellido", Apellido);
+            }
+            else
+            {
+                invitado.Apellido = "";
+
+            }
+            Apellido = invitado.Apellido;
+
+
+        }
+        catch (Exception e)
+        {
+
+            logger.LogError("Error en CargarFormulario", e);
+
+        }
+
+
+
+
+    }
+    private async Task Close()
+    {
+        try
+        {
+            NavigationManager.NavigateTo("/", true);
+
+
+
+            //if (VolverAInicio == true)
+            //{
+
+            //    NavigationManager.NavigateTo("/", true);
+
+
+            //}
+            //else
+            //{
+            //    await js.InvokeVoidAsync("ocultarBodyInscribir");
+
+            //    emailAux = "";
+            //    ModalDisplay = "none";
+            //    ModalClass = "";
+            //    ShowBackdrop = false;
+            //    esconderPregExtranjero = false;
+            //    ReiniciarFormulario();
+            //    StateHasChanged();
+            //}
+
+        }
+        catch (Exception e)
+        {
+
+            logger.LogError("Error en close", e);
+
+        }
+
+
+
+    }
+
+    private async Task GuardarInvitado()
+    {
+        try
+        {
+
+            string text = await js.InvokeAsync<string>("traerDatoInput");
+            inputCampoExtranjero = text;
+            if (IdInvitado != 0)
+            {
+                string estadoInvitado = eventoParticipantes.Where(x => x.IdInvitacion == IdInvitado).ToList().ElementAt(0).EstadodeInscripcion;
+                if (estadoInvitado != "Pendiente" && estadoInvitado != "No aceptado" && estadoInvitado != "")
+                {
+                    esconderGuardar = true;
+
+                    await js.InvokeVoidAsync("alert", "El usuario ingresado ya fue invitado al evento y tiene una vacante confirmada");
+                    ReiniciarFormulario();
+                }
+                else
+                {
+                    if (estadoInvitado == "Pendiente")
+                    {
+                        esconderGuardar = false;
+
+                        await js.InvokeVoidAsync("alert", "El usuario debe confirmar su inscripción al evento");
+                    }
+                }
+            }
+            else
+            {
+
+                //no esta invitado
+
+                if (personaNueva != null)
+                {
+                    try
+                    {
+                        //esta en base de datos pero no esta invitado
+
+
+                        Persona aux = crearObjetoEditPersona(personaNueva);
+                        guardarInvitacionNueva(aux);
+
+                        esconderGuardar = true;
+
+
+                        await js.InvokeVoidAsync("alert", "Su preinscripción ha sido enviada. En breve le enviaremos la disponibilidad de vacante a su correo.");
+
+                        logger.LogError(VolverAInicio.ToString());
+
+                        //var timer = new Timer(new TimerCallback(_ =>
+                        //{
+                            if (VolverAInicio == true)
+                            {
+                                logger.LogError("pasa");
+
+                                NavigationManager.NavigateTo("/", true);
+
+                            }
+                            else
+                            {
+                                logger.LogError("pasa volver a inicio false");
+
+                                NavigationManager.NavigateTo(NavigationManager.Uri, forceLoad: true);
+
+                            }
+
+                        //}), null, 1000, 1000);
+
+
+
+
+                    }
+                    catch (Exception e)
+                    {
+                        esconderGuardar = true;
+
+                        logger.LogError("Error esta en base de datos pero no esta invitado", e);
+                    }
+                }
+                else
+                {
+                    await guardarNuevaPersonaEInvitacion();
+                    //no esta en base de datos
+                }
+
+            }
+
+        }
+        catch (Exception e)
+        {
+
+            logger.LogError("Error en GuardarInvitado", e);
+
+        }
+
+
+
+    }
+
+    private async Task guardarNuevaPersonaEInvitacion()
+    {
+
+        try
+        {
+
+            var aux = crearObjetNewPersona();
+            if (aux.NumeroDocumento == null)
+            {
+                esconderGuardar = false;
+
+                await js.InvokeVoidAsync("alert", "Debe completar los campos para continuar");
+                return;
+            }
+            var response = await Http.PostAsJsonAsync<Persona>(UrlPersona + "/AgregarPersonaInscripta", aux);
+            var oRespuestaPersona = response.Content.ReadFromJsonAsync<Respuesta<Object>>().Result;
+            aux.Id = int.Parse(oRespuestaPersona.Mensaje);
+            if (response.IsSuccessStatusCode && aux.Id != 0)
+            {
+                Invitacion enviada = MandarInvitacionADB(aux, IdEvento);
+                await postInvitado(UrlInvitacion, enviada, aux, true);
+
+                if (guardarAsistio == true)
+                {
+                    if (aux.TipoDocumento == "DNI" || aux.TipoDocumento == "CUIL")
+
+                    {
+                        var respuestaSave = await Http.GetFromJsonAsync<Respuesta<EventoParticipante>>(UrlEventoParticipante + "/AsistioInvitadoConDNI/" + enviada.Id + "/" + idPuntoDeAcceso + "/" + idInvitaP);
+
+                    }
+                    else
+                    {
+
+                        if (aux.TipoDocumento == "PASAPORTE")
+                        {
+                            var respuestaSave = await Http.GetFromJsonAsync<Respuesta<EventoParticipante>>(UrlEventoParticipante + "/AsistioInvitadoExtranjero/" + idInvitaP + "/" + idPuntoDeAcceso);
+
+
+                        }
+
+                    }
+
+
+                }
+
+
+                if (oRespuestaEventoParticipanteCargado.Exito == 1)
+                {
+                    esconderGuardar = true;
+
+                    await js.InvokeVoidAsync("alert", "Su preinscripción ha sido enviada. En breve le enviaremos la disponibilidad de vacante a su correo.");
+
+
+                    var timer = new Timer(new TimerCallback(_ =>
+                    {
+
+                        if (VolverAInicio == true)
+                        {
+
+                            NavigationManager.NavigateTo("/", forceLoad: true);
+
+                        }
+                        else { 
+                                                NavigationManager.NavigateTo(NavigationManager.Uri, forceLoad: true);
+
+                        
+                        }
+
+                    }), null, 1000, 1000);
+                }
+                else
+                {
+                    esconderGuardar = true;
+
+
+                    await js.InvokeVoidAsync("alert", "Error en guardado de invitacion");
+                }
+            }
+            else
+            {
+                esconderGuardar = true;
+
+                logger.LogError("Error guardarPersona nueva");
+            }
+
+        }
+        catch (Exception e)
+        {
+            esconderGuardar = true;
+
+            logger.LogError("Error en guardarNuevaPersonaEInvitacion", e);
+
+        }
+
+
+    }
+
+    private bool validarCampos()
+    {
+        bool retorno = true;
+
+        try
+        {
+
+            emailAux = emailAux.ToLower();
+            if (!FuncionesBasicas.IsValidMail(emailAux))
+            {
+                mensajeValidacion = "El formato del email es incorrecto";
+                retorno = false;
+            }
+            else
+            {
+                if (FuncionesBasicas.HaveANumber(Nombre) || FuncionesBasicas.HaveANumber(Apellido))
+                {
+                    mensajeValidacion = "El nombre y el apellido no puede contener números.";
+                    retorno = false;
+                }
+                if (dniAux.Length > 15)
+                {
+                    mensajeValidacion = "El número de documento/pasaporte no puede tener mas de 15 dígitos.";
+                    retorno = false;
+                }
+                if (Nombre.Length > 100 || Apellido.Length > 100)
+                {
+                    mensajeValidacion = "Error en extensión de nombres";
+                    retorno = false;
+                }
+                if (emailAux.Contains("@trabajo.gob.ar") && dniAux.Length != 11)
+                {
+                    mensajeValidacion = "Los usuarios del ministerio deben ingresar su CUIL";
+                    retorno = false;
+                }
+
+            }
+        }
+        catch (Exception e)
+        {
+
+            logger.LogError("Error en validarCampos", e);
+
+        }
+
+        return retorno;
+    }
+    private async Task Save()
+    {
+        esconderGuardar = true;
+        try
+        {
+
+            var estaEnLista = personasYaInvitadas.Any(x => x.MailContacto == emailAux);
+
+            if (estaEnLista == false)
+            {
+                if (emailAux != "" && Nombre != "" && Apellido != "" && dniAux != "")
+                {
+
+                    if (validarCampos())
+                    {
+                        GuardarInvitado();
+                    }
+                    else
+                    {
+                        esconderGuardar = false;
+                        await js.InvokeVoidAsync("alert", mensajeValidacion);
+                        StateHasChanged();
+                    }
+
+                }
+                else
+                {
+                    if (emailAux == "" || Nombre == "" || Apellido == "")
+                    {
+                        esconderGuardar = false;
+
+                        await js.InvokeVoidAsync("alert", "Por favor complete los campos faltantes");
+                        StateHasChanged();
+                    }
+                    else
+                    {
+                        if (validarCampos())
+                        {
+                            await GuardarInvitado();
+                        }
+                        else
+                        {
+                            esconderGuardar = false;
+
+                            await js.InvokeVoidAsync("alert", mensajeValidacion);
+                            StateHasChanged();
+                        }
+                    }
+                }
+            }
+        }
+        catch (Exception ex)
+        {
+            esconderGuardar = false;
+
+            logger.LogError("Error pre save", ex);
+        }
+    }
+    private Persona crearObjetoEditPersona(Persona personaNueva)
+    {
+        Persona aux = new Persona();
+        aux = personaNueva;
+
+        aux.Apellido = Apellido;
+        aux.Nombre = Nombre;
+
+
+        try
+        {
+            if (dniAux.Length == 8 && inputCampoExtranjero == "0")
+            {
+                aux.NumeroDocumento = dniAux;
+                aux.TipoDocumento = "DNI";
+            }
+            else
+            {
+                if (dniAux.Length == 11 && inputCampoExtranjero == "0")
+                {
+                    aux.NumeroDocumento = dniAux;
+                    aux.TipoDocumento = "CUIL";
+                }
+
+            }
+            if (inputCampoExtranjero == "1")
+            {
+                aux.NumeroDocumento = dniAux;
+                aux.TipoDocumento = "PASAPORTE";
+            }
+
+            aux.TelefonoContacto = TelefonoContacto;
+            aux.Puesto = Puesto;
+
+        }
+        catch (Exception e)
+        {
+
+            logger.LogError("Error en crearObjetoEditPersona", e);
+
+        }
+
+
+        return aux;
+    }
+
+    private Persona crearObjetNewPersona()
+    {
+        Persona aux = new Persona();
+        aux.Nombre = Nombre;
+        aux.Apellido = Apellido;
+        aux.MailContacto = emailAux;
+        if (inputCampoExtranjero == "")
+        {
+            //si viene de cero sin tildar significa que es argentino
+            inputCampoExtranjero = "0";
+        }
+
+        try
+        {
+            if (dniAux.Length == 8 && inputCampoExtranjero == "0")
+            {
+                aux.NumeroDocumento = dniAux;
+                aux.TipoDocumento = "DNI";
+            }
+            else
+            {
+                if (dniAux.Length == 11 && inputCampoExtranjero == "0")
+                {
+                    aux.NumeroDocumento = dniAux;
+                    aux.TipoDocumento = "CUIL";
+                }
+                else
+                {
+                    if (inputCampoExtranjero == "1")
+                    {
+                        aux.NumeroDocumento = dniAux;
+                        aux.TipoDocumento = "PASAPORTE";
+                    }
+
+                }
+
+            }
+
+
+            aux.TelefonoContacto = TelefonoContacto;
+            aux.Puesto = Puesto;
+            aux.IdOrganismo = 2;
+
+        }
+        catch (Exception e)
+        {
+
+            logger.LogError("Error en crearObjetNewPersona", e);
+
+        }
+
+
+        return aux;
+    }
+
+    private async Task guardarInvitacionNueva(Persona aux)
+    {
+
+        try
+        {
+            var nada = await Http.PutAsJsonAsync<Persona>(UrlPersona + "/EditarPersonaImport", aux);
+
+            if (nada.IsSuccessStatusCode)
+            {
+                Invitacion enviada = MandarInvitacionADB(aux, IdEvento);
+                await postInvitado(UrlInvitacion, enviada, aux, true);
+
+            }
+            else
+            {
+                logger.LogError("Error EditarPersonaImport");
+            }
+
+        }
+        catch (Exception e)
+        {
+
+            logger.LogError("Error en guardarInvitacionNueva", e);
+
+        }
+
+    }
+
+    private Invitacion MandarInvitacionADB(Persona participante, int idEvento)
+    {
+        Invitacion oInvitacion = null;
+        oInvitacion = FuncionesBasicas.armarInvitadoPersona(participante, idEvento);
+        return oInvitacion;
+    }
+
+    private async Task postInvitado(string UrlInvitacion, Invitacion oInvitacion, Persona persona, bool esInvitado)
+    {
+        try
+        {
+            var response = await Http.PostAsJsonAsync<Invitacion>(UrlInvitacion, oInvitacion);
+            oRespuestaInvitado = response.Content.ReadFromJsonAsync<Respuesta<Object>>().Result;
+            if (response.IsSuccessStatusCode)
+            {
+
+
+                idInvitaP = int.Parse(oRespuestaInvitado.Mensaje);
+
+                if (esInvitado == true)
+                {
+                    oRespuestaEventoParticipanteCargado = await Http.GetFromJsonAsync<Respuesta<EventoParticipante>>(UrlEventoParticipante + "/PasoAPreinscriptoInvitado/" + idInvitaP);
+
+                }
+
+            }
+            else
+            {
+                logger.LogError("No se puedo guardar al invitado con el id " + persona.Id);
+            }
+
+        }
+        catch (Exception e)
+        {
+
+            logger.LogError("Error en postInvitado", e);
+
+        }
+
+
+
+    }
+    }
